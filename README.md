@@ -1,7 +1,7 @@
-This template is intended for students of Utrecht University.
+This path tracer is based on the Utrecht University [Advanced Graphics course](https://www.cs.uu.nl/docs/vakken/magr/2021-2022/).
 
-**Please refer to "_ getting started.pdf" for instructions.**
+The code is built on top of the course's generic [C/C++/OpenCL framework](https://github.com/jbikker/advgrtmpl8).
 
-Code is fully public domain. Use as you please.
+My intent is to follow the course assignments as closely as possible then eventually extend the path tracer with more advanced features.
 
-Contact me at bikker.j@gmail.com.
+I highly recommend following the above course if you want to learn how to write your own path tracer.
