@@ -21,7 +21,7 @@
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -130,10 +130,15 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="camera.h" />
     <ClInclude Include="cl\tools.cl" />
+    <ClInclude Include="intersectable.h" />
+    <ClInclude Include="material.h" />
     <ClInclude Include="myapp.h" />
+    <ClInclude Include="rendertimer.h" />
     <ClInclude Include="template\common.h" />
     <ClInclude Include="template\precomp.h" />
+    <ClInclude Include="whitted.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cl\kernels.cl" />

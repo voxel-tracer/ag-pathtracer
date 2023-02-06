@@ -1,5 +1,51 @@
 #include "precomp.h"
+#include "whitted.h"
 #include "myapp.h"
+
+shared_ptr<Scene> TestGlassScene() {
+	auto dark_red = make_shared<SolidColor>(.1f, 0.f, 0.f);
+	auto dark_grey = make_shared<SolidColor>(.8f);
+	auto light_grey = make_shared<SolidColor>(.1f);
+	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
+
+	auto glass = make_shared<Material>(dark_red, GLASS, 1.05f);
+	auto floor = make_shared<Material>(checker);
+
+	vector<shared_ptr<Intersectable>> primitives;
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
+	primitives.push_back(std::make_shared<Sphere>(make_float3(-2.0f, 0, 0), 1.0f, glass));
+	primitives.push_back(std::make_shared<Sphere>(make_float3(0, 0.5f, 0), 0.5f, glass));
+	primitives.push_back(std::make_shared<Sphere>(make_float3(1.0f, 0.75f, 0), 0.25f, glass));
+
+	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
+	float3 light = float3(-30, -100, 40);
+	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
+
+	return make_shared<Scene>(primitives, light, lightColor, camera);
+}
+
+Scene InitScene() {
+	auto orange = make_shared<SolidColor>(rgb2lin({ 1.f, .68f, .25f }));
+	auto yellow = make_shared<SolidColor>(rgb2lin({ .98f, .85f, .37f }));
+	auto checker = make_shared<CheckerTexture>(yellow, orange);
+	auto grey = make_shared<SolidColor>(.73f);
+
+	auto glass = Material::make_glass(1.05f);
+	auto white = make_shared<Material>(grey);
+	auto mirror = Material::make_mirror(.8f, .8f, .8f);
+	auto floor = make_shared<Material>(checker);
+
+	vector<shared_ptr<Intersectable>> primitives;
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(4, 4), floor));
+	primitives.push_back(std::make_shared<Sphere>(make_float3(.5f, .2f, -.25f), .5f, glass));
+	primitives.push_back(std::make_shared<Sphere>(make_float3(-.65f, 0, -.75f), .45f, mirror));
+
+	CameraDesc camera{ { .25f, -1, 2.5 }, { .25f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 1.f, 45 };
+	float3 light{ 0.0f, -10, 0.0f };
+	float3 lightColor(100);
+
+	return Scene(primitives, light, lightColor, camera);
+}
 
 TheApp* CreateApp() { return new MyApp(); }
 
@@ -9,29 +55,48 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
+	//InitScene();
+	scene = TestGlassScene();
+	camera = make_shared<RotatingCamera>(scene->camera);
 }
 
 // -----------------------------------------------------------
 // Main application tick function - Executed once per frame
+// deltaTime: elapsed time since last frame in milliseconds
 // -----------------------------------------------------------
 void MyApp::Tick( float deltaTime )
 {
+	// rotate camera if mouse moved since last tick
+	if (mouseDiff.x != 0 || mouseDiff.y != 0) {
+		float rotation_speed = 0.005f;
+		camera->update(float2(mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
+	}
+	mouseDiff = int2(0); // reset mouse diff
 
-	// NOTE: clear this function before actual use; code is only for 
-	// demonstration purposes. See _ getting started.pdf for details.
-	
 	// clear the screen to black
 	screen->Clear( 0 );
-	// print something to the console window
-	printf( "hello world!\n" );
-	// plot some colors
-	for (int red = 0; red < 256; red++) for (int green = 0; green < 256; green++)
-	{
-		int x = red, y = green;
-		screen->Plot( x + 200, y + 100, (red << 16) + (green << 8) );
+
+	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
+
+	timer.start();
+
+	const int RenderWidth = MinScrSize;
+	const int RenderHeight = MinScrSize;
+	for (int y = -RenderHeight / 2; y < RenderHeight / 2; y++) {
+		float v = ((float)y) / RenderHeight + .5f;
+		for (int x = -RenderWidth / 2; x < RenderWidth / 2; x++) {
+			float u = ((float)x) / RenderWidth + .5f;
+			Ray ray = camera->GetRay(u, v);
+			float3 clr = Trace(scene.get(), ray, 0);
+			screen->Plot(SCRWIDTH / 2 + x, SCRHEIGHT / 2 + y, rgb2uint(clr));
+		}
 	}
-	// plot a white pixel in the bottom right corner
-	screen->Plot( SCRWIDTH - 2, SCRHEIGHT - 2, 0xffffff );
+
+	if (timer.stop()) {
+		auto stats = timer.getStatsAndReset();
+		printf("Render stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", stats.bestDuration, stats.avgDuration, stats.worstDuration);
+	}
+
 
 #if 0
 
