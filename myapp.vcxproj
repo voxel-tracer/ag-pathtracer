@@ -130,6 +130,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bvhtrimesh.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cl\tools.cl" />
     <ClInclude Include="intersectable.h" />
@@ -138,6 +139,8 @@
     <ClInclude Include="rendertimer.h" />
     <ClInclude Include="template\common.h" />
     <ClInclude Include="template\precomp.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
+    <ClInclude Include="trianglemesh.h" />
     <ClInclude Include="whitted.h" />
   </ItemGroup>
   <ItemGroup>

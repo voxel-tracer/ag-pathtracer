@@ -1,6 +1,35 @@
 #include "precomp.h"
 #include "whitted.h"
+#include "bvhtrimesh.h"
 #include "myapp.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#define TINYOBJLOADER_USE_MAPBOX_EARCUT
+#include "tiny_obj_loader.h"
+
+shared_ptr<Scene> BunnyScene() {
+	auto dark_red = make_shared<SolidColor>(.1f, 0.f, 0.f);
+	auto light_grey = make_shared<SolidColor>(.8f);
+	auto dark_grey = make_shared<SolidColor>(.1f);
+	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
+
+	auto mat = make_shared<Material>(dark_red); // make_shared<Material>(dark_red, GLASS, 1.05f);
+	auto floor = make_shared<Material>(checker);
+
+	vector<shared_ptr<Intersectable>> primitives;
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
+	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
+	
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-lowpoly.obj", mat, transform, true);
+	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
+	//primitives.push_back(trimesh);
+
+	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
+	float3 light = float3(-30, -100, 40);
+	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
+
+	return make_shared<Scene>(primitives, light, lightColor, camera);
+}
 
 shared_ptr<Scene> TestGlassScene() {
 	auto dark_red = make_shared<SolidColor>(.1f, 0.f, 0.f);
@@ -56,7 +85,8 @@ void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
 	//InitScene();
-	scene = TestGlassScene();
+	//scene = TestGlassScene();
+	scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 }
 
@@ -74,7 +104,7 @@ void MyApp::Tick( float deltaTime )
 	mouseDiff = int2(0); // reset mouse diff
 
 	// clear the screen to black
-	screen->Clear( 0 );
+	screen->Clear(0);
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 
@@ -96,7 +126,6 @@ void MyApp::Tick( float deltaTime )
 		auto stats = timer.getStatsAndReset();
 		printf("Render stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", stats.bestDuration, stats.avgDuration, stats.worstDuration);
 	}
-
 
 #if 0
 

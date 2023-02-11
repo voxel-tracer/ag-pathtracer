@@ -31,10 +31,10 @@ public:
 		float u = (P.x - O.x) / HalfSize.x;
 		float v = (P.z - O.z) / HalfSize.y;
 		if (fabsf(u) <= 1 && fabs(v) <= 1) {
-			// TODO store (u,v) in Hit and delegate to Material.color(u, v) to compute the appropriate color
 			hit.u = (u + 1) / 2.0f;
 			hit.v = (v + 1) / 2.0f;
 			hit.mat = mat.get();
+			ray.t = t;
 			hit.I = P;
 			hit.N = make_float3(0, -1, 0);
 			return true;

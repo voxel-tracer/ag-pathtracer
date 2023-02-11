@@ -22,6 +22,9 @@
     <ClInclude Include="material.h" />
     <ClInclude Include="intersectable.h" />
     <ClInclude Include="rendertimer.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
+    <ClInclude Include="trianglemesh.h" />
+    <ClInclude Include="bvhtrimesh.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">

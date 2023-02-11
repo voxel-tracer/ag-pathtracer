@@ -27,7 +27,7 @@ public:
 
 float3 DirectIllumination(const Scene* scene, const float3& I, const float3& N) {
 	// check if light source is unobstructed
-	Ray ray(I + 0.0001f * N, normalize(scene->lightPos - I));
+	Ray ray(I + EPSILON * N, normalize(scene->lightPos - I));
 	Hit hit;
 	if (scene->NearestIntersection(ray, hit)) {
 		return float3(0); // light source doesn't reach I
@@ -80,7 +80,7 @@ float3 Trace(const Scene* scene, const Ray& ray, int depth) {
 	if (mat->type == MIRROR) {
 		// TODO material should compute reflected direction
 		float3 D = reflect(ray.D, hit.N);
-		float3 O = hit.I + 0.0001f * D;
+		float3 O = hit.I + EPSILON * D;
 		return mat->baseColor->value(hit.u, hit.v) * Trace(scene, Ray(O, D), depth + 1);
 	}
 	if (mat->type == GLASS) {
@@ -118,18 +118,18 @@ float3 Trace(const Scene* scene, const Ray& ray, int depth) {
 		// compute how much light is reflected
 		float Fr = 1.0f;
 		float3 T;
-		float3 color;
+		float3 color(0.0f);
 		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
 			// some light is refracted, compute Fresnel reflection
 			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
 
 			// trace refracted ray
-			color = (1 - Fr) * transmission * Trace(scene, Ray(hit.I + .0001f * (-N), T), depth + 1);
+			color = (1 - Fr) * transmission * Trace(scene, Ray(hit.I + EPSILON * (-N), T), depth + 1);
 		}
 
 		// trace reflected ray
 		float3 R = reflect(ray.D, N);
-		color += Fr * transmission * Trace(scene, Ray(hit.I + .0001f * N, R), depth + 1);
+		color += Fr * transmission * Trace(scene, Ray(hit.I + EPSILON * N, R), depth + 1);
 
 		return color;
 	}
