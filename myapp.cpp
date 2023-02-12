@@ -8,19 +8,20 @@
 #include "tiny_obj_loader.h"
 
 shared_ptr<Scene> BunnyScene() {
-	auto dark_red = make_shared<SolidColor>(.1f, 0.f, 0.f);
+	float3 dark_red(.1f, 0.f, 0.f);
 	auto light_grey = make_shared<SolidColor>(.8f);
 	auto dark_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	auto mat = make_shared<Material>(dark_red); // make_shared<Material>(dark_red, GLASS, 1.05f);
-	auto floor = make_shared<Material>(checker);
+	auto mat = Material::make_lambertian(SolidColor::make(dark_red));
+	//auto mat = Material::make_glass(1.05f);
+	auto floor = Material::make_lambertian(checker);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-lowpoly.obj", mat, transform, true);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-0.1.obj", mat, transform, true);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 	//primitives.push_back(trimesh);
 
@@ -28,17 +29,21 @@ shared_ptr<Scene> BunnyScene() {
 	float3 light = float3(-30, -100, 40);
 	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
 
-	return make_shared<Scene>(primitives, light, lightColor, camera);
+	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<PointLight>(light, lightColor));
+
+	return scene;
 }
 
 shared_ptr<Scene> TestGlassScene() {
-	auto dark_red = make_shared<SolidColor>(.1f, 0.f, 0.f);
+	float3 dark_red(.1f, 0.f, 0.f);
 	auto dark_grey = make_shared<SolidColor>(.8f);
 	auto light_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	auto glass = make_shared<Material>(dark_red, GLASS, 1.05f);
-	auto floor = make_shared<Material>(checker);
+	auto glass = Material::make_glass(1.05f, dark_red);
+	auto floor = Material::make_lambertian(checker);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
@@ -50,31 +55,34 @@ shared_ptr<Scene> TestGlassScene() {
 	float3 light = float3(-30, -100, 40);
 	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
 
-	return make_shared<Scene>(primitives, light, lightColor, camera);
+	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+
+	return scene;
 }
 
-Scene InitScene() {
-	auto orange = make_shared<SolidColor>(rgb2lin({ 1.f, .68f, .25f }));
-	auto yellow = make_shared<SolidColor>(rgb2lin({ .98f, .85f, .37f }));
-	auto checker = make_shared<CheckerTexture>(yellow, orange);
-	auto grey = make_shared<SolidColor>(.73f);
-
-	auto glass = Material::make_glass(1.05f);
-	auto white = make_shared<Material>(grey);
-	auto mirror = Material::make_mirror(.8f, .8f, .8f);
-	auto floor = make_shared<Material>(checker);
-
-	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(4, 4), floor));
-	primitives.push_back(std::make_shared<Sphere>(make_float3(.5f, .2f, -.25f), .5f, glass));
-	primitives.push_back(std::make_shared<Sphere>(make_float3(-.65f, 0, -.75f), .45f, mirror));
-
-	CameraDesc camera{ { .25f, -1, 2.5 }, { .25f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 1.f, 45 };
-	float3 light{ 0.0f, -10, 0.0f };
-	float3 lightColor(100);
-
-	return Scene(primitives, light, lightColor, camera);
-}
+//Scene InitScene() {
+//	auto orange = make_shared<SolidColor>(rgb2lin({ 1.f, .68f, .25f }));
+//	auto yellow = make_shared<SolidColor>(rgb2lin({ .98f, .85f, .37f }));
+//	auto checker = make_shared<CheckerTexture>(yellow, orange);
+//	auto grey = make_shared<SolidColor>(.73f);
+//
+//	auto glass = Material::make_glass(1.05f);
+//	auto white = make_shared<Material>(grey);
+//	auto mirror = Material::make_mirror(.8f, .8f, .8f);
+//	auto floor = make_shared<Material>(checker);
+//
+//	vector<shared_ptr<Intersectable>> primitives;
+//	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(4, 4), floor));
+//	primitives.push_back(std::make_shared<Sphere>(make_float3(.5f, .2f, -.25f), .5f, glass));
+//	primitives.push_back(std::make_shared<Sphere>(make_float3(-.65f, 0, -.75f), .45f, mirror));
+//
+//	CameraDesc camera{ { .25f, -1, 2.5 }, { .25f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 1.f, 45 };
+//	float3 light{ 0.0f, -10, 0.0f };
+//	float3 lightColor(100);
+//
+//	return Scene(primitives, light, lightColor, camera);
+//}
 
 TheApp* CreateApp() { return new MyApp(); }
 
@@ -88,6 +96,7 @@ void MyApp::Init()
 	//scene = TestGlassScene();
 	scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
+	integrator = make_shared<WhittedIntegrator>(10);
 }
 
 // -----------------------------------------------------------
@@ -117,7 +126,7 @@ void MyApp::Tick( float deltaTime )
 		for (int x = -RenderWidth / 2; x < RenderWidth / 2; x++) {
 			float u = ((float)x) / RenderWidth + .5f;
 			Ray ray = camera->GetRay(u, v);
-			float3 clr = Trace(scene.get(), ray, 0);
+			float3 clr = integrator->Li(ray, *scene);
 			screen->Plot(SCRWIDTH / 2 + x, SCRHEIGHT / 2 + y, rgb2uint(clr));
 		}
 	}

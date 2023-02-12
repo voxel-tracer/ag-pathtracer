@@ -3,11 +3,12 @@
 #include "camera.h"
 #include "material.h"
 #include "intersectable.h"
+#include "lights.h"
 
 class Scene {
 public:
-	Scene(vector<shared_ptr<Intersectable>> p, float3 lightpos, float3 lightcolor, const CameraDesc& cam) :
-		primitives(move(p)), lightPos(lightpos), lightColor(lightcolor), camera(cam) {}
+	Scene(vector<shared_ptr<Intersectable>> p, const CameraDesc& cam) :
+		primitives(move(p)), camera(cam) {}
 
 	bool NearestIntersection(const Ray& ray, Hit& hit) const {
 		bool found = false;
@@ -20,26 +21,9 @@ public:
 	}
 
 	vector<shared_ptr<Intersectable>> primitives;
-	float3 lightPos;
-	float3 lightColor;
+	vector<shared_ptr<Light>> lights;
 	CameraDesc camera;
 };
-
-float3 DirectIllumination(const Scene* scene, const float3& I, const float3& N) {
-	// check if light source is unobstructed
-	Ray ray(I + EPSILON * N, normalize(scene->lightPos - I));
-	Hit hit;
-	if (scene->NearestIntersection(ray, hit)) {
-		return float3(0); // light source doesn't reach I
-	}
-
-	// compute distance to light source
-	float r2 = sqrLength(scene->lightPos - I);
-	// compute cosine between light direction and normal
-	float IoN = clamp(dot(ray.D, N), 0.0f, 1.0f); // notice that D points towards the light
-	// account for light intensity
-	return scene->lightColor * IoN / r2;
-}
 
 bool refract(const float3& I, const float3& N, float cos_thetaI, float etai_over_etat, float3& T) {
 	// thetaI is the incident angle
@@ -60,79 +44,104 @@ float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 	return r0 + (1 - r0) * powf((1 + cos_thetaI), 5); // we use +cos_thetaI instead of -cos_thetaI because we used ray.D to compute the cosine
 }
 
-float3 Trace(const Scene* scene, const Ray& ray, int depth) {
-	if (depth == 10) return float3(0.0f);
+class Integrator {
+public:
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const = 0;
+};
 
-	Hit hit;
-	if (!scene->NearestIntersection(ray, hit)) {
-		// Background color
-		// RGB 173, 216, 229
-		// 0-1 .68, .85, .89
-		//return rgb2lin({ .68f, .85f, 0.89f });
-		return { .4f, .45f, .5f };
-	}
-	const Material* mat = hit.mat;
+class WhittedIntegrator : public Integrator {
+public:
+	WhittedIntegrator(int maxDepth = 5) : maxDepth(maxDepth) {}
 
-	if (mat->type == DIFFUSE) {
-		// TODO material should just evaluate the color
-		return mat->baseColor->value(hit.u, hit.v) * DirectIllumination(scene, hit.I, hit.N);
-	}
-	if (mat->type == MIRROR) {
-		// TODO material should compute reflected direction
-		float3 D = reflect(ray.D, hit.N);
-		float3 O = hit.I + EPSILON * D;
-		return mat->baseColor->value(hit.u, hit.v) * Trace(scene, Ray(O, D), depth + 1);
-	}
-	if (mat->type == GLASS) {
-		// figure out if we are entering or exiting the object
-		bool entering = dot(ray.D, hit.N) < 0;
-		float3 N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+		float3 L(0.f);
 
-		// absorption can only happen inside a glass (entering == false)
-		float3 transmission(1.0f);
-		float3 matColor = mat->baseColor->value(hit.u, hit.v);
-		if (!entering && length(matColor) > 0.0f) {
-			//transmission.x = exp(-hit.color.x * ray.t);
-			//transmission.y = exp(-hit.color.y * ray.t);
-			//transmission.z = exp(-hit.color.z * ray.t);
-			transmission.x = pow(matColor.x, ray.t);
-			transmission.y = pow(matColor.y, ray.t);
-			transmission.z = pow(matColor.z, ray.t);
+		Hit hit;
+		if (!scene.NearestIntersection(ray, hit)) {
+			for (const auto& light : scene.lights) L += light->Le(ray);
+			return L;
 		}
 
-		// use it to compute refraction ratio assuming external material is air
-		float etaI, etaT;
-		if (entering) { // air -> material
-			etaI = 1.0f; // air
-			etaT = mat->ref_idx;
-		}
-		else { // material -> air
-			etaI = mat->ref_idx;
-			etaT = 1.0f;
+		hit.EvalMaterial();
+
+		if (!isblack(hit.diffuse)) {
+			// TODO material should just evaluate the color
+			L += hit.diffuse * DirectIllumination(scene, hit.I, hit.N);
 		}
 
-		// thetaI is the incident angle
-		// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
-		float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
-
-		// compute how much light is reflected
-		float Fr = 1.0f;
-		float3 T;
-		float3 color(0.0f);
-		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
-			// some light is refracted, compute Fresnel reflection
-			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
-
-			// trace refracted ray
-			color = (1 - Fr) * transmission * Trace(scene, Ray(hit.I + EPSILON * (-N), T), depth + 1);
+		if (depth + 1 < maxDepth && !isblack(hit.specular)) {
+			// TODO material should compute reflected direction
+			float3 D = reflect(ray.D, hit.N);
+			float3 O = hit.I + EPSILON * D;
+			L += hit.specular * Li(Ray(O, D), scene, depth + 1);
 		}
 
-		// trace reflected ray
-		float3 R = reflect(ray.D, N);
-		color += Fr * transmission * Trace(scene, Ray(hit.I + EPSILON * N, R), depth + 1);
+		if (depth + 1 < maxDepth && !isblack(hit.transmission)) {
+			// figure out if we are entering or exiting the object
+			bool entering = dot(ray.D, hit.N) < 0;
+			float3 N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
 
-		return color;
+			// absorption can only happen inside a glass (entering == false)
+			float3 transmission(1.0f);
+			if (!entering) transmission = pow(hit.transmission, ray.t);
+
+			// use it to compute refraction ratio assuming external material is air
+			float etaI, etaT;
+			if (entering) { // air -> material
+				etaI = 1.0f; // air
+				etaT = hit.mat->ref_idx;
+			}
+			else { // material -> air
+				etaI = hit.mat->ref_idx;
+				etaT = 1.0f;
+			}
+
+			// thetaI is the incident angle
+			// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
+			float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
+
+			// compute how much light is reflected
+			float Fr = 1.0f;
+			float3 T;
+			if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
+				// some light is refracted, compute Fresnel reflection
+				Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
+
+				// trace refracted ray
+				L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1);
+			}
+
+			// trace reflected ray
+			float3 R = reflect(ray.D, N);
+			L += Fr * transmission * Li(Ray(hit.I + EPSILON * N, R), scene, depth + 1);
+
+			return L;
+		}
+
+		return L;
+	}
+protected:
+	float3 DirectIllumination(const Scene& scene, const float3 I, const float3& N) const {
+		float3 L(0.f);
+		float3 wi;
+		Ray shadowRay;
+		Hit tmpHit;
+
+		for (const auto& light : scene.lights) {
+			auto Li = light->Sample_Li(I, &wi, &shadowRay);
+			if (isblack(Li)) continue; // light didn't return any radiance toward I
+
+			auto WiDotN = dot(wi, N);
+			if (WiDotN <= 0.f) continue; // light is behind the surface
+
+			// TODO we need an IntersectP() that just returns true if any intersection is found
+			if (scene.NearestIntersection(shadowRay, tmpHit)) continue; // light is obstructed
+
+			L += Li * WiDotN;
+		}
+
+		return L;
 	}
 
-	return make_float3(0.0f);
-}
+	int maxDepth;
+};

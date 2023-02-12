@@ -39,6 +39,7 @@ public:
 
 	shared_ptr<RotatingCamera> camera;
 	shared_ptr<Scene> scene;
+	shared_ptr<Integrator> integrator;
 
 	RenderTimer timer;
 };

@@ -747,6 +747,10 @@ inline float3 reflect( const float3& i, const float3& n ) { return i - 2.0f * n 
 
 inline float3 cross( const float3& a, const float3& b ) { return make_float3( a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x ); }
 
+inline bool isblack(const float3& v) { return v.x == 0.f && v.y == 0.f && v.z == 0.f; }
+
+inline float3 pow(const float3& v, float e) { return make_float3(pow(v.x, e), pow(v.y, e), pow(v.z, e)); }
+
 inline float smoothstep( float a, float b, float x )
 {
 	float y = clamp( (x - a) / (b - a), 0.0f, 1.0f );

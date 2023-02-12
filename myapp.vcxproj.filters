@@ -25,6 +25,7 @@
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="trianglemesh.h" />
     <ClInclude Include="bvhtrimesh.h" />
+    <ClInclude Include="lights.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">

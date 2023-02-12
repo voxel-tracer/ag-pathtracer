@@ -2,7 +2,8 @@
 
 class Ray {
 public:
-	Ray(float3 o, float3 d) : O(o), D(normalize(d)), t(FLT_MAX) {}
+	Ray() = default;
+	Ray(float3 o, float3 d, float t = FLT_MAX) : O(o), D(normalize(d)), t(t) {}
 
 	float3 at(float t) const {
 		return O + t * D;
