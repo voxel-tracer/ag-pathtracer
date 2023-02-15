@@ -40,6 +40,20 @@ inline uint rgb2uint(float3 clr) {
 	return (r << 16) + (g << 8) + b;
 }
 
+inline float RandomFloat(float min, float max) {
+	// Returns a random real in [min,max).
+	return min + (max - min) * RandomFloat();
+
+}
+
+inline float3 RandomInUnitDisk() {
+	while (true) {
+		auto p = float3(RandomFloat(-1, 1), RandomFloat(-1, 1), 0);
+		if (sqrLength(p) >= 1) continue;
+		return p;
+	}
+}
+
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):

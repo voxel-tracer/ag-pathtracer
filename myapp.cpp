@@ -25,6 +25,8 @@ shared_ptr<Scene> BunnyScene() {
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
+	//camera.aperture = 1.f;
+
 	float3 light = float3(-30, -100, 40);
 	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
 
@@ -79,9 +81,9 @@ void MyApp::Tick( float deltaTime )
 	const int RenderWidth = MinScrSize;
 	const int RenderHeight = MinScrSize;
 	for (int y = 0; y < RenderHeight; y++) {
-		float v = ((float)y) / RenderHeight;
+		float v = (y + RandomFloat()) / RenderHeight;
 		for (int x = 0; x < RenderWidth; x++) {
-			float u = ((float)x) / RenderWidth;
+			float u = (x + RandomFloat()) / RenderWidth;
 			Ray ray = camera->GetRay(u, v);
 			float3 clr = integrator->Li(ray, *scene);
 			accumulator->AddSample(x, y, clr);
