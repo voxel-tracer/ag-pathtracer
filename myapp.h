@@ -5,6 +5,44 @@
 namespace Tmpl8
 {
 
+class Accumulator {
+public:
+	Accumulator(int w, int h) : width(w), height(h), samples(0) {
+		pixels = (float3*)MALLOC64(width * height * sizeof(float3));
+		Clear();
+	}
+
+	~Accumulator() { FREE64(pixels); }
+
+	inline void AddSample(int x, int y, const float3& clr) {
+		pixels[y * width + x] += clr;
+	}
+
+	inline void IncrementSampleCount() {
+		samples++;
+	}
+
+	inline void Clear() {
+		const int s = width * height;
+		for (int i = 0; i < s; i++) pixels[i] = float3(0.f);
+
+		samples = 0;
+	}
+
+	inline void CopyToSurface(Surface* screen, int offsetX, int offsetY) const {
+		for (auto y = 0; y < height; y++) {
+			for (auto x = 0; x < width; x++) {
+				screen->Plot(x + offsetX, y + offsetY, rgb2uint(pixels[y * width + x] / samples));
+			}
+		}
+	}
+
+private:
+	float3* pixels;
+	int width, height;
+	int samples;
+};
+
 
 class MyApp : public TheApp
 {
@@ -42,6 +80,7 @@ public:
 	shared_ptr<Integrator> integrator;
 
 	RenderTimer timer;
+	shared_ptr<Accumulator> accumulator;
 };
 
 } // namespace Tmpl8
