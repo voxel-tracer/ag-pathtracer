@@ -22,6 +22,8 @@ public:
 		samples++;
 	}
 
+	inline int NumSamples() const { return samples; }
+
 	inline void Clear() {
 		const int s = width * height;
 		for (int i = 0; i < s; i++) pixels[i] = float3(0.f);

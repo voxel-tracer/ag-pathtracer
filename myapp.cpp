@@ -118,7 +118,8 @@ void MyApp::Tick( float deltaTime )
 
 	if (timer.stop()) {
 		auto stats = timer.getStatsAndReset();
-		printf("Render stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", stats.bestDuration, stats.avgDuration, stats.worstDuration);
+		printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", 
+			accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
 	}
 
 	accumulator->CopyToSurface(screen, (SCRWIDTH - RenderWidth) / 2, (SCRHEIGHT - RenderHeight) / 2);
