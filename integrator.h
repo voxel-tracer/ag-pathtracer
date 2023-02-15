@@ -152,3 +152,41 @@ protected:
 
 	int maxDepth;
 };
+
+class SimplePT : public Integrator {
+public:
+	SimplePT(int maxDepth = 5) : MaxDepth(maxDepth) {}
+
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+		float3 L(0.f);
+
+		Hit hit;
+		if (!scene.NearestIntersection(ray, hit)) {
+			// Ray left the scene, handle infinite lights
+			for (const auto& light : scene.lights) L += light->Le(ray);
+			return L;
+		}
+
+		hit.EvalMaterial();
+
+		// terminate if we hit a light source
+		if (!isblack(hit.emission)) return hit.emission;
+		// terminate if we exceed MaxDepth
+		if (depth + 1 > MaxDepth) return L;
+		
+		// continue in random direction
+		auto R = DiffuseReflection(hit.N);
+		Ray newRay(hit.I + EPSILON * R, R);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
+		return TWOPI * BRDF * Ei;
+	}
+
+protected:
+	float3 DiffuseReflection(const float3& N) const {
+		return RandomInHemisphere(N);
+	}
+
+	int MaxDepth;
+};

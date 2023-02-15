@@ -54,6 +54,25 @@ inline float3 RandomInUnitDisk() {
 	}
 }
 
+inline float3 RandomInSphere(float Radius = 1.f) {
+	auto a = 1 - 2 * RandomFloat();
+	auto b = sqrt(1 - a * a);
+	auto phi = 2 * PI * RandomFloat();
+	return make_float3(
+		Radius * b * cos(phi),
+		Radius * b * sin(phi),
+		Radius * a
+	);
+}
+
+inline float3 RandomInHemisphere(const float3& N) {
+	auto in_unit_sphere = RandomInSphere();
+	// if point is not in same hemisphere as normal N, invert it
+	if (dot(in_unit_sphere, N) < 0)
+		return -in_unit_sphere;
+	return in_unit_sphere;
+}
+
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):
