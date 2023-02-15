@@ -12,11 +12,13 @@ public:
 	float3 diffuse;
 	float3 specular;
 	float3 transmission;
+	float3 emission;
 
 	void EvalMaterial() {
 		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
 		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);
 		transmission = (mat->transmission) ? mat->transmission->value(u, v) : float3(0.f);
+		emission = mat->emission;
 	}
 };
 

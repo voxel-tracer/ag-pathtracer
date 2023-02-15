@@ -44,6 +44,7 @@ public:
 	shared_ptr<Texture> diffuse;
 	shared_ptr<Texture> specular;
 	shared_ptr<Texture> transmission;
+	float3 emission;
 
 	static shared_ptr<Material> make_lambertian(shared_ptr<Texture> diffuse) {
 		auto lambertian = make_shared<Material>();
@@ -62,5 +63,11 @@ public:
 		auto mirror = make_shared<Material>();
 		mirror->specular = SolidColor::make(float3(r, g, b));
 		return mirror;
+	}
+
+	static shared_ptr<Material> make_emitter(float r, float g, float b) {
+		auto mat = make_shared <Material>();
+		mat->emission = float3(r, g, b);
+		return mat;
 	}
 };
