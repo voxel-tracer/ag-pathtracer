@@ -37,6 +37,33 @@ shared_ptr<Scene> BunnyScene() {
 	return scene;
 }
 
+shared_ptr<Scene> GlassScene() {
+	float3 dark_red(.1f, 0.f, 0.f);
+	auto light_grey = make_shared<SolidColor>(.8f);
+	auto dark_grey = make_shared<SolidColor>(.1f);
+	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
+
+	auto mat = Material::make_glass(1.125f);
+	auto floor = Material::make_lambertian(checker);
+
+	vector<shared_ptr<Intersectable>> primitives;
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
+	primitives.push_back(make_shared<Sphere>(float3(.5f, .25f - EPSILON, .5f), .75f, mat));
+
+	CameraDesc camera;
+	camera.lookfrom = float3(3.f, -1.5f, 4.f);
+	camera.lookat = float3(.5f, 0, .5f);
+	camera.vup = float3(0, 1, 0);
+	camera.aspect_ratio = 1;
+	//camera.aperture = .1f;
+
+	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<PointLight>(float3(-30, -100, 40), float3(52300, 34200, 34200)));
+
+	return scene;
+}
+
 TheApp* CreateApp() { return new MyApp(); }
 
 // -----------------------------------------------------------
@@ -45,9 +72,8 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	//InitScene();
-	//scene = TestGlassScene();
-	scene = BunnyScene();
+	scene = GlassScene();
+	//scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 	integrator = make_shared<WhittedIntegrator>(10);
 

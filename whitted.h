@@ -47,6 +47,59 @@ float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 class Integrator {
 public:
 	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const = 0;
+
+protected:
+	float3 SpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
+		if (isblack(hit.specular)) return float3(0.f);
+			
+		float3 D = reflect(ray.D, hit.N);
+		float3 O = hit.I + EPSILON * D;
+		return hit.specular * Li(Ray(O, D), scene, depth + 1);
+	}
+
+	float3 SpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
+		if (isblack(hit.transmission)) return float3(0.f);
+
+		// figure out if we are entering or exiting the object
+		auto entering = dot(ray.D, hit.N) < 0;
+		auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
+
+		// absorption can only happen inside a glass (entering == false)
+		float3 transmission(1.0f);
+		if (!entering) transmission = pow(hit.transmission, ray.t);
+
+		// compute refraction index assuming external material is air
+		float etaI, etaT;
+		if (entering) { // air -> material
+			etaI = 1.0f; // air
+			etaT = hit.mat->ref_idx;
+		}
+		else { // material -> air
+			etaI = hit.mat->ref_idx;
+			etaT = 1.0f;
+		}
+
+		// thetaI is the incident angle
+		// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
+		float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
+
+		float3 T;
+		float Fr = 1;
+		float3 L(0.f);
+		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
+			// some light is refracted, compute Fresnel reflection
+			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
+			// trace refracted ray
+			L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1);
+		}
+
+		// TODO we should also account for reflections (total internal reflection + Fresnel reflection at the surface)
+		// trace reflected ray
+		// float3 R = reflect(ray.D, N);
+		// L += Fr * transmission * Li(Ray(hit.I + EPSILON * N, R), scene, depth + 1);
+
+		return L;
+	}
 };
 
 class WhittedIntegrator : public Integrator {
@@ -64,58 +117,12 @@ public:
 
 		hit.EvalMaterial();
 
-		if (!isblack(hit.diffuse)) {
-			// TODO material should just evaluate the color
+		if (!isblack(hit.diffuse)) 
 			L += hit.diffuse * DirectIllumination(scene, hit.I, hit.N);
-		}
 
-		if (depth + 1 < maxDepth && !isblack(hit.specular)) {
-			// TODO material should compute reflected direction
-			float3 D = reflect(ray.D, hit.N);
-			float3 O = hit.I + EPSILON * D;
-			L += hit.specular * Li(Ray(O, D), scene, depth + 1);
-		}
-
-		if (depth + 1 < maxDepth && !isblack(hit.transmission)) {
-			// figure out if we are entering or exiting the object
-			bool entering = dot(ray.D, hit.N) < 0;
-			float3 N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
-
-			// absorption can only happen inside a glass (entering == false)
-			float3 transmission(1.0f);
-			if (!entering) transmission = pow(hit.transmission, ray.t);
-
-			// use it to compute refraction ratio assuming external material is air
-			float etaI, etaT;
-			if (entering) { // air -> material
-				etaI = 1.0f; // air
-				etaT = hit.mat->ref_idx;
-			}
-			else { // material -> air
-				etaI = hit.mat->ref_idx;
-				etaT = 1.0f;
-			}
-
-			// thetaI is the incident angle
-			// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
-			float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
-
-			// compute how much light is reflected
-			float Fr = 1.0f;
-			float3 T;
-			if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
-				// some light is refracted, compute Fresnel reflection
-				Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
-
-				// trace refracted ray
-				L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1);
-			}
-
-			// trace reflected ray
-			float3 R = reflect(ray.D, N);
-			L += Fr * transmission * Li(Ray(hit.I + EPSILON * N, R), scene, depth + 1);
-
-			return L;
+		if (depth + 1 < maxDepth) {
+			L += SpecularReflection(ray, hit, scene, depth);
+			L += SpecularTransmission(ray, hit, scene, depth);
 		}
 
 		return L;
