@@ -25,18 +25,17 @@ shared_ptr<Scene> BunnyScene() {
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
-	//camera.aperture = 1.f;
+	camera.aperture = .1f;
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(523, 342, 342);
-	auto light = make_shared<Sphere>(float3(-30, -100, 40), 10.f, lightMat);
+	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
 	primitives.push_back(light);
 
 	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-	//scene->lights.push_back(make_shared<PointLight>(float3(-30, -100, 40), float3(52300, 34200, 34200)));
 
 	return scene;
 }
@@ -82,7 +81,7 @@ void MyApp::Init()
 
 	//integrator = make_shared<WhittedIntegrator>(10);
 	integratorL = make_shared<SimplePT2>();
-	integratorR = make_shared<SimplePT>();
+	integratorR = integratorL; // make_shared<SimplePT>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize);

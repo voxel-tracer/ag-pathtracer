@@ -213,12 +213,31 @@ public:
 		// terminate if we hit a light source
 		if (!isblack(hit.emission)) return float3(0.f);
 
+		L += DirectLight(scene, hit);
+		// terminate if we exceed MaxDepth
+		if (depth + 1 > MaxDepth) return L;
+
+		// continue in random direction
+		auto R = DiffuseReflection(hit.N);
+		Ray newRay(hit.I + EPSILON * R, R);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
+		L += TWOPI * BRDF * Ei;
+
+		return L;
+	}
+
+protected:
+	float3 DiffuseReflection(const float3& N) const {
+		return RandomInHemisphere(N);
+	}
+
+	float3 DirectLight(const Scene& scene, const Hit& hit) const {
 		// pick one random light
 		int lights = (int)(scene.lights.size());
 		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
 		const auto& light = scene.lights[lightIdx];
-
-		// sample point on the light
 		float3 S, lightN;
 		if (!light->Sample(hit.I, &S, &lightN)) return false; // light doesn't support sampling
 		float3 toL = S - hit.I;
@@ -229,16 +248,12 @@ public:
 		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
 		// light is not behind surface point, trace shadow ray
 		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
-		if (scene.NearestIntersection(newRay, hit)) return float3(0.f); // occluded light
+		Hit tmpHit;
+		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
 		// light is visible, calculate transport
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
 		float solidAngle = (cos_o * light->Area()) / (dist * dist);
 		return BRDF * lights * light->L * solidAngle * cos_i;
-	}
-
-protected:
-	float3 DiffuseReflection(const float3& N) const {
-		return RandomInHemisphere(N);
 	}
 
 	int MaxDepth;
