@@ -192,3 +192,54 @@ protected:
 
 	int MaxDepth;
 };
+
+
+class SimplePT2 : public Integrator {
+public:
+	SimplePT2(int maxDepth = 5) : MaxDepth(maxDepth) {}
+
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+		float3 L(0.f);
+
+		Hit hit;
+		if (!scene.NearestIntersection(ray, hit)) {
+			// Ray left the scene, handle infinite lights
+			for (const auto& light : scene.lights) L += light->Le(ray);
+			return L;
+		}
+
+		hit.EvalMaterial();
+
+		// terminate if we hit a light source
+		if (!isblack(hit.emission)) return float3(0.f);
+
+		// pick one random light
+		int lights = (int)(scene.lights.size());
+		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
+		const auto& light = scene.lights[lightIdx];
+
+		// sample point on the light
+		float3 S, lightN;
+		if (!light->Sample(hit.I, &S, &lightN)) return false; // light doesn't support sampling
+		float3 toL = S - hit.I;
+		float dist = length(toL);
+		toL /= dist;
+		float cos_o = dot(-toL, lightN);
+		float cos_i = dot(toL, hit.N);
+		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
+		// light is not behind surface point, trace shadow ray
+		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
+		if (scene.NearestIntersection(newRay, hit)) return float3(0.f); // occluded light
+		// light is visible, calculate transport
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		float solidAngle = (cos_o * light->Area()) / (dist * dist);
+		return BRDF * lights * light->L * solidAngle * cos_i;
+	}
+
+protected:
+	float3 DiffuseReflection(const float3& N) const {
+		return RandomInHemisphere(N);
+	}
+
+	int MaxDepth;
+};

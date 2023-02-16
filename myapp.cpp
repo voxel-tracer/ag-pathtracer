@@ -28,10 +28,13 @@ shared_ptr<Scene> BunnyScene() {
 	//camera.aperture = 1.f;
 
 	// add an emitting sphere
+	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(523, 342, 342);
-	primitives.push_back(make_shared<Sphere>(float3(-30, -100, 40), 10.f, lightMat));
+	auto light = make_shared<Sphere>(float3(-30, -100, 40), 10.f, lightMat);
+	primitives.push_back(light);
 
 	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
 	//scene->lights.push_back(make_shared<PointLight>(float3(-30, -100, 40), float3(52300, 34200, 34200)));
 
@@ -78,7 +81,8 @@ void MyApp::Init()
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);
-	integrator = make_shared<SimplePT>();
+	integratorL = make_shared<SimplePT2>();
+	integratorR = make_shared<SimplePT>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize);
@@ -114,7 +118,7 @@ void MyApp::Tick( float deltaTime )
 		for (int x = 0; x < RenderWidth; x++) {
 			float u = (x + RandomFloat()) / RenderWidth;
 			Ray ray = camera->GetRay(u, v);
-			float3 clr = integrator->Li(ray, *scene);
+			float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene);
 			accumulator->AddSample(x, y, clr);
 		}
 	}

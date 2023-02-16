@@ -85,7 +85,7 @@ public:
 
 class Sphere : public Intersectable {
 public:
-	Sphere(float3 center, float radius, shared_ptr<Material> m) : Center(center), r2(radius* radius), mat(m) {}
+	Sphere(float3 center, float radius, shared_ptr<Material> m) : Center(center), r(radius), r2(radius* radius), mat(m) {}
 
 	virtual bool Intersect(const Ray& ray, Hit& hit) const override {
 		float3 oc = ray.O - Center;
@@ -114,8 +114,13 @@ public:
 
 	virtual float Area() const override { return 4.f * PI * r2; }
 
+	virtual void Sample(const float3& ref, float3* S, float3* N) const override {
+		*S = Center + RandomInSphere(r);
+		*N = normalize(ref - Center);
+	}
+
 public:
 	float3 Center;
-	float r2;
+	float r, r2;
 	shared_ptr<Material> mat;
 };
