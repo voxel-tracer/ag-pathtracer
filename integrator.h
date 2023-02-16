@@ -130,21 +130,23 @@ public:
 protected:
 	float3 DirectIllumination(const Scene& scene, const float3 I, const float3& N) const {
 		float3 L(0.f);
-		float3 wi;
-		Ray shadowRay;
-		Hit tmpHit;
 
 		for (const auto& light : scene.lights) {
-			auto Li = light->Sample_Li(I, &wi, &shadowRay);
-			if (isblack(Li)) continue; // light didn't return any radiance toward I
+			float3 S, lightN;
+			light->Sample(I, &S, &lightN);
+			float3 Wi = S - I;
+			float dist = length(Wi);
+			Wi /= dist;
 
-			auto WiDotN = dot(wi, N);
-			if (WiDotN <= 0.f) continue; // light is behind the surface
-
-			// TODO we need an IntersectP() that just returns true if any intersection is found
+			float cos_o = dot(-Wi, lightN);
+			float cos_i = dot(Wi, N);
+			if (cos_o <= 0 || cos_i <= 0.f) continue; // light is behind the surface
+			// trace a shadow ray
+			Ray shadowRay(I + EPSILON * Wi, Wi, dist - EPSILON);
+			Hit tmpHit;
 			if (scene.NearestIntersection(shadowRay, tmpHit)) continue; // light is obstructed
-
-			L += Li * WiDotN;
+			float3 Li = light->L / (dist * dist);
+			L += Li * cos_i;
 		}
 
 		return L;
