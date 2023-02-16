@@ -34,7 +34,8 @@ public:
 	inline void CopyToSurface(Surface* screen, int offsetX, int offsetY) const {
 		for (auto y = 0; y < height; y++) {
 			for (auto x = 0; x < width; x++) {
-				screen->Plot(x + offsetX, y + offsetY, rgb2uint(pixels[y * width + x] / (float)samples));
+				auto rgb = lin2rgb(pixels[y * width + x] / (float)samples); // Gamma correction
+				screen->Plot(x + offsetX, y + offsetY, rgb2uint(rgb));
 			}
 		}
 	}
