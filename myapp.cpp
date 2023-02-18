@@ -16,7 +16,7 @@ shared_ptr<Scene> BunnyScene() {
 	auto mat = Material::make_lambertian(SolidColor::make(float3(.7f, .1f, .1f)));
 	auto floor = Material::make_lambertian(checker);
 
-	auto glass = Material::make_glass(1.05f);
+	auto glass = Material::make_glass(1.33f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
@@ -83,8 +83,8 @@ void MyApp::Init()
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);
-	integratorL = make_shared<SimplePT2>();
-	integratorR = integratorL; // make_shared<SimplePT>();
+	integratorL = make_shared<PathTracer>();
+	integratorR = integratorL;
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize);
