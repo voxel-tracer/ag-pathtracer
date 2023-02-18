@@ -202,6 +202,8 @@ protected:
 	}
 
 	float3 DirectLight(const Scene& scene, const Hit& hit) const {
+		if (isblack(hit.diffuse)) return float3(0.f);
+
 		// pick one random light
 		int lights = (int)(scene.lights.size());
 		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
