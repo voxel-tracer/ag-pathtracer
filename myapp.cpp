@@ -1,5 +1,5 @@
 #include "precomp.h"
-#include "whitted.h"
+#include "integrator.h"
 #include "bvhtrimesh.h"
 #include "myapp.h"
 
@@ -13,76 +13,62 @@ shared_ptr<Scene> BunnyScene() {
 	auto dark_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	auto mat = Material::make_lambertian(SolidColor::make(dark_red));
-	//auto mat = Material::make_glass(1.05f);
+	auto mat = Material::make_lambertian(SolidColor::make(float3(.7f, .1f, .1f)));
 	auto floor = Material::make_lambertian(checker);
+
+	auto glass = Material::make_glass(1.33f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-0.1.obj", mat, transform, true);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-lowpoly.obj", mat, transform, true);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
-	//primitives.push_back(trimesh);
+
+	primitives.push_back(make_shared<Sphere>(float3(2, 0, 0), .5f, glass));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
-	float3 light = float3(-30, -100, 40);
-	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
+	camera.aperture = .1f;
+
+	// add an emitting sphere
+	auto lightE = float3(523, 342, 342);
+	auto lightMat = Material::make_emitter(523, 342, 342);
+	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
+	primitives.push_back(light);
 
 	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-	scene->lights.push_back(make_shared<PointLight>(light, lightColor));
 
 	return scene;
 }
 
-shared_ptr<Scene> TestGlassScene() {
+shared_ptr<Scene> GlassScene() {
 	float3 dark_red(.1f, 0.f, 0.f);
-	auto dark_grey = make_shared<SolidColor>(.8f);
-	auto light_grey = make_shared<SolidColor>(.1f);
+	auto light_grey = make_shared<SolidColor>(.8f);
+	auto dark_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	auto glass = Material::make_glass(1.05f, dark_red);
+	auto mat = Material::make_glass(1.125f);
 	auto floor = Material::make_lambertian(checker);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	primitives.push_back(std::make_shared<Sphere>(make_float3(-2.0f, 0, 0), 1.0f, glass));
-	primitives.push_back(std::make_shared<Sphere>(make_float3(0, 0.5f, 0), 0.5f, glass));
-	primitives.push_back(std::make_shared<Sphere>(make_float3(1.0f, 0.75f, 0), 0.25f, glass));
+	primitives.push_back(make_shared<Sphere>(float3(.5f, .25f - EPSILON, .5f), .75f, mat));
 
-	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
-	float3 light = float3(-30, -100, 40);
-	float3 lightColor = float3(52300, 34200, 34200); // approximately 4000K black body light source
+	CameraDesc camera;
+	camera.lookfrom = float3(3.f, -1.5f, 4.f);
+	camera.lookat = float3(.5f, 0, .5f);
+	camera.vup = float3(0, 1, 0);
+	camera.aspect_ratio = 1;
+	//camera.aperture = .1f;
 
 	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<PointLight>(float3(-30, -100, 40), float3(52300, 34200, 34200)));
 
 	return scene;
 }
-
-//Scene InitScene() {
-//	auto orange = make_shared<SolidColor>(rgb2lin({ 1.f, .68f, .25f }));
-//	auto yellow = make_shared<SolidColor>(rgb2lin({ .98f, .85f, .37f }));
-//	auto checker = make_shared<CheckerTexture>(yellow, orange);
-//	auto grey = make_shared<SolidColor>(.73f);
-//
-//	auto glass = Material::make_glass(1.05f);
-//	auto white = make_shared<Material>(grey);
-//	auto mirror = Material::make_mirror(.8f, .8f, .8f);
-//	auto floor = make_shared<Material>(checker);
-//
-//	vector<shared_ptr<Intersectable>> primitives;
-//	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(4, 4), floor));
-//	primitives.push_back(std::make_shared<Sphere>(make_float3(.5f, .2f, -.25f), .5f, glass));
-//	primitives.push_back(std::make_shared<Sphere>(make_float3(-.65f, 0, -.75f), .45f, mirror));
-//
-//	CameraDesc camera{ { .25f, -1, 2.5 }, { .25f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, 1.f, 45 };
-//	float3 light{ 0.0f, -10, 0.0f };
-//	float3 lightColor(100);
-//
-//	return Scene(primitives, light, lightColor, camera);
-//}
 
 TheApp* CreateApp() { return new MyApp(); }
 
@@ -92,11 +78,16 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	//InitScene();
-	//scene = TestGlassScene();
+	//scene = GlassScene();
 	scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
-	integrator = make_shared<WhittedIntegrator>(10);
+
+	//integrator = make_shared<WhittedIntegrator>(10);
+	integratorL = make_shared<PathTracer>();
+	integratorR = integratorL;
+
+	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
+	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize);
 }
 
 // -----------------------------------------------------------
@@ -109,6 +100,7 @@ void MyApp::Tick( float deltaTime )
 	if (mouseDiff.x != 0 || mouseDiff.y != 0) {
 		float rotation_speed = 0.005f;
 		camera->update(float2(mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
+		accumulator->Clear();
 	}
 	mouseDiff = int2(0); // reset mouse diff
 
@@ -119,22 +111,27 @@ void MyApp::Tick( float deltaTime )
 
 	timer.start();
 
+	accumulator->IncrementSampleCount();
+
 	const int RenderWidth = MinScrSize;
 	const int RenderHeight = MinScrSize;
-	for (int y = -RenderHeight / 2; y < RenderHeight / 2; y++) {
-		float v = ((float)y) / RenderHeight + .5f;
-		for (int x = -RenderWidth / 2; x < RenderWidth / 2; x++) {
-			float u = ((float)x) / RenderWidth + .5f;
+	for (int y = 0; y < RenderHeight; y++) {
+		float v = (y + RandomFloat()) / RenderHeight;
+		for (int x = 0; x < RenderWidth; x++) {
+			float u = (x + RandomFloat()) / RenderWidth;
 			Ray ray = camera->GetRay(u, v);
-			float3 clr = integrator->Li(ray, *scene);
-			screen->Plot(SCRWIDTH / 2 + x, SCRHEIGHT / 2 + y, rgb2uint(clr));
+			float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
+			accumulator->AddSample(x, y, clr);
 		}
 	}
 
 	if (timer.stop()) {
 		auto stats = timer.getStatsAndReset();
-		printf("Render stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", stats.bestDuration, stats.avgDuration, stats.worstDuration);
+		printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", 
+			accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
 	}
+
+	accumulator->CopyToSurface(screen, (SCRWIDTH - RenderWidth) / 2, (SCRHEIGHT - RenderHeight) / 2);
 
 #if 0
 

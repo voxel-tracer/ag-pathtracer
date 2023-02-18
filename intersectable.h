@@ -12,17 +12,27 @@ public:
 	float3 diffuse;
 	float3 specular;
 	float3 transmission;
+	float3 emission;
 
 	void EvalMaterial() {
 		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
 		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);
 		transmission = (mat->transmission) ? mat->transmission->value(u, v) : float3(0.f);
+		emission = mat->emission;
 	}
 };
 
 class Intersectable {
 public:
 	virtual bool Intersect(const Ray& ray, Hit& hit) const = 0;
+
+	// Surface area of the Shape
+	// Mostly used for Direct light
+	virtual float Area() const { return 0.f; }
+
+	// Sample a point |S| on the shape given a reference point |ref| and
+	// returns the surface normal |N| at that point
+	virtual void Sample(const float3& ref, float3* S, float3* N) const {}
 };
 
 // Simple XZ plane with normal = Y
@@ -52,6 +62,21 @@ public:
 		return false;
 	}
 
+	virtual float Area() const override { return 4.f * HalfSize.x * HalfSize.y; }
+
+	virtual void Sample(const float3& ref, float3* S, float3* N) const override {
+		float3 s = O;
+		s.x += RandomFloat(-1, 1) * HalfSize.x;
+		s.z += RandomFloat(-1, 1) * HalfSize.y;
+		*S = s;
+		// ensure light normal faces reference point
+		float3 L = normalize(s - ref);
+		float3 lightNormal = float3(0, -1, 0);
+		float cos_o = dot(-L, lightNormal);
+		if (cos_o < 0) lightNormal = -lightNormal;
+		*N = lightNormal;
+	}
+
 public:
 	float3 O;
 	float2 HalfSize;
@@ -60,7 +85,7 @@ public:
 
 class Sphere : public Intersectable {
 public:
-	Sphere(float3 center, float radius, shared_ptr<Material> m) : Center(center), r2(radius* radius), mat(m) {}
+	Sphere(float3 center, float radius, shared_ptr<Material> m) : Center(center), r(radius), r2(radius* radius), mat(m) {}
 
 	virtual bool Intersect(const Ray& ray, Hit& hit) const override {
 		float3 oc = ray.O - Center;
@@ -87,8 +112,15 @@ public:
 		return true;
 	}
 
+	virtual float Area() const override { return 4.f * PI * r2; }
+
+	virtual void Sample(const float3& ref, float3* S, float3* N) const override {
+		*S = Center + RandomInSphere(r);
+		*N = normalize(ref - Center);
+	}
+
 public:
 	float3 Center;
-	float r2;
+	float r, r2;
 	shared_ptr<Material> mat;
 };

@@ -245,7 +245,7 @@ shared_ptr<BVHBuildNode> BVHTriMesh::BuildRecursive(int start, int end, int maxP
 
         // Initialize _BucketInfo_ for SAH partition buckets
         for (int i = start; i < end; i++) {
-            int b = nBuckets * centroidBounds.Offset(primitives[i].centroid)[axis];
+            int b = (int)(nBuckets * centroidBounds.Offset(primitives[i].centroid)[axis]);
             if (b == nBuckets) b = nBuckets - 1;
             buckets[b].count++;
             buckets[b].bounds.Grow(primitives[i].bounds);
@@ -278,15 +278,15 @@ shared_ptr<BVHBuildNode> BVHTriMesh::BuildRecursive(int start, int end, int maxP
         }
 
         // Either create leaf or split primitives at selected SAH bucket
-        float leafCost = nPrimitives;
+        float leafCost = (float)nPrimitives;
         if (nPrimitives > maxPrimsInNode || minCost < leafCost) {
             Primitive* pmid = partition(&primitives[start], &primitives[end - 1] + 1,
                 [=](const Primitive& pi) {
-                    int b = nBuckets * centroidBounds.Offset(pi.centroid)[axis];
+                    int b = (int)(nBuckets * centroidBounds.Offset(pi.centroid)[axis]);
                     if (b == nBuckets) b = nBuckets - 1;
                     return b <= minCostSplitBucket;
                 });
-            mid = pmid - &primitives[0];
+            mid = (int)(pmid - &primitives[0]);
         }
         else {
             // Create leaf node

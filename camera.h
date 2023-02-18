@@ -21,6 +21,7 @@ struct CameraDesc {
 	float aspect_ratio;		// screen width/size
 	float vfov = 45;		// vertical field of view in degrees
 	float focus_dist = 1.0f;	// distance of the screen from the camera origin (only matters once we support depth of field)
+	float aperture = 0.0f;
 };
 
 class Camera {
@@ -31,7 +32,7 @@ public:
 		desc.vup,
 		desc.aspect_ratio,
 		desc.vfov,
-		desc.focus_dist
+		desc.aperture
 	) {}
 
 	Camera(
@@ -40,8 +41,8 @@ public:
 		float3 vup,
 		float aspect_ratio,
 		float vfov,
-		float focus_dist
-	) : lookat(lookat), vup(vup), focus_dist(focus_dist) {
+		float aperture
+	) : lookat(lookat), vup(vup) {
 		auto theta = radians(vfov);
 
 		// compute screen/viewport size assuming it's positioned 1 unit in from of the camera
@@ -49,16 +50,23 @@ public:
 		viewport_height = 2 * h;
 		viewport_width = aspect_ratio * viewport_height;
 
+		lens_radius = aperture / 2;
+
 		updateCoords(lookfrom);
 	}
 
 	Ray GetRay(float s, float t) const {
+		float3 rd(0.f);
+		if (lens_radius > 0.f) rd = lens_radius * RandomInUnitDisk();
+		auto offset = u * rd.x + v * rd.y;
 		float3 pixel = lower_left_corner + s * horizontal + t * vertical;
-		return Ray(origin, pixel - origin);
+		return Ray(origin + offset, pixel - origin - offset);
 	}
 
 protected:
 	void updateCoords(float3 lookfrom) {
+		focus_dist = length(lookat - lookfrom);
+
 		// compute camera coordinate system vectors
 		w = normalize(lookfrom - lookat); // notice w points opposite to the screen
 		u = normalize(cross(vup, w));
@@ -75,6 +83,7 @@ protected:
 	float3 lookat;
 	float3 vup;
 	float focus_dist;
+	float lens_radius;
 
 	float viewport_width;
 	float viewport_height;
@@ -95,7 +104,7 @@ public:
 		desc.vup,
 		desc.aspect_ratio,
 		desc.vfov,
-		desc.focus_dist
+		desc.aperture
 	) {}
 	RotatingCamera(
 		float3 lookfrom,
@@ -103,14 +112,14 @@ public:
 		float3 vup,
 		float aspect_ratio,
 		float vfov,
-		float focus_dist
+		float aperture
 	) : Camera(
 		lookfrom,
 		lookat,
 		vup,
 		aspect_ratio,
 		vfov,
-		focus_dist
+		aperture
 	) {
 		dist2LookAt = length(lookat - lookfrom);
 		// compute rotations

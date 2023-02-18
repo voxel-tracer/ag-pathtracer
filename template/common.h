@@ -40,6 +40,39 @@ inline uint rgb2uint(float3 clr) {
 	return (r << 16) + (g << 8) + b;
 }
 
+inline float RandomFloat(float min, float max) {
+	// Returns a random real in [min,max).
+	return min + (max - min) * RandomFloat();
+
+}
+
+inline float3 RandomInUnitDisk() {
+	while (true) {
+		auto p = float3(RandomFloat(-1, 1), RandomFloat(-1, 1), 0);
+		if (sqrLength(p) >= 1) continue;
+		return p;
+	}
+}
+
+inline float3 RandomInSphere(float Radius = 1.f) {
+	auto a = 1 - 2 * RandomFloat();
+	auto b = sqrt(1 - a * a);
+	auto phi = 2 * PI * RandomFloat();
+	return make_float3(
+		Radius * b * cos(phi),
+		Radius * b * sin(phi),
+		Radius * a
+	);
+}
+
+inline float3 RandomInHemisphere(const float3& N) {
+	auto in_unit_sphere = RandomInSphere();
+	// if point is not in same hemisphere as normal N, invert it
+	if (dot(in_unit_sphere, N) < 0)
+		return -in_unit_sphere;
+	return in_unit_sphere;
+}
+
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):
