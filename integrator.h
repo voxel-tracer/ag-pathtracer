@@ -46,7 +46,7 @@ float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 
 class Integrator {
 public:
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const = 0;
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const = 0;
 
 protected:
 	float3 SpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
@@ -54,7 +54,7 @@ protected:
 			
 		float3 D = reflect(ray.D, hit.N);
 		float3 O = hit.I + EPSILON * D;
-		return hit.specular * Li(Ray(O, D), scene, depth + 1);
+		return hit.specular * Li(Ray(O, D), scene, depth + 1, true);
 	}
 
 	float3 SpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
@@ -90,7 +90,7 @@ protected:
 			// some light is refracted, compute Fresnel reflection
 			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
 			// trace refracted ray
-			L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1);
+			L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1, true);
 		}
 
 		// TODO we should also account for reflections (total internal reflection + Fresnel reflection at the surface)
@@ -106,7 +106,7 @@ class WhittedIntegrator : public Integrator {
 public:
 	WhittedIntegrator(int maxDepth = 5) : maxDepth(maxDepth) {}
 
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
 		float3 L(0.f);
 
 		Hit hit;
@@ -159,7 +159,7 @@ class SimplePT : public Integrator {
 public:
 	SimplePT(int maxDepth = 5) : MaxDepth(maxDepth) {}
 
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
 		float3 L(0.f);
 
 		Hit hit;
@@ -198,7 +198,7 @@ class SimplePT2 : public Integrator {
 public:
 	SimplePT2(int maxDepth = 5) : MaxDepth(maxDepth) {}
 
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const override {
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
 		float3 L(0.f);
 
 		Hit hit;
@@ -211,26 +211,33 @@ public:
 		hit.EvalMaterial();
 
 		// terminate if we hit a light source
-		if (!isblack(hit.emission)) return float3(0.f);
+		if (!isblack(hit.emission)) 
+			return isSpecular ? hit.emission : float3(0.f);
 
 		L += DirectLight(scene, hit);
 		// terminate if we exceed MaxDepth
 		if (depth + 1 > MaxDepth) return L;
 
-		// continue in random direction
-		auto R = DiffuseReflection(hit.N);
-		Ray newRay(hit.I + EPSILON * R, R);
-		// update throughput
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
-		L += TWOPI * BRDF * Ei;
+		if (depth + 1 < MaxDepth) {
+			L += DiffuseReflection(hit, scene, depth);
+			L += SpecularReflection(ray, hit, scene, depth);
+			L += SpecularTransmission(ray, hit, scene, depth);
+		}
 
 		return L;
 	}
 
 protected:
-	float3 DiffuseReflection(const float3& N) const {
-		return RandomInHemisphere(N);
+	float3 DiffuseReflection(const Hit& hit, const Scene& scene, int depth) const {
+		if (isblack(hit.diffuse)) return float3(0.f);
+
+		// continue in random direction
+		auto R = RandomInHemisphere(hit.N);
+		Ray newRay(hit.I + EPSILON * R, R);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
+		return TWOPI * BRDF * Ei;
 	}
 
 	float3 DirectLight(const Scene& scene, const Hit& hit) const {
@@ -253,7 +260,7 @@ protected:
 		// light is visible, calculate transport
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
 		float solidAngle = (cos_o * light->Area()) / (dist * dist);
-		return BRDF * lights * light->L * solidAngle * cos_i;
+		return BRDF * (float)lights * light->L * solidAngle * cos_i;
 	}
 
 	int MaxDepth;

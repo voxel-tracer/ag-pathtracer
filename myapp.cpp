@@ -14,8 +14,9 @@ shared_ptr<Scene> BunnyScene() {
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
 	auto mat = Material::make_lambertian(SolidColor::make(float3(.7f, .1f, .1f)));
-	//auto mat = Material::make_glass(1.05f);
 	auto floor = Material::make_lambertian(checker);
+
+	auto glass = Material::make_glass(1.05f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
@@ -23,6 +24,8 @@ shared_ptr<Scene> BunnyScene() {
 	
 	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-lowpoly.obj", mat, transform, true);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
+
+	primitives.push_back(make_shared<Sphere>(float3(2, 0, 0), .5f, glass));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
 	camera.aperture = .1f;
@@ -117,7 +120,7 @@ void MyApp::Tick( float deltaTime )
 		for (int x = 0; x < RenderWidth; x++) {
 			float u = (x + RandomFloat()) / RenderWidth;
 			Ray ray = camera->GetRay(u, v);
-			float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene);
+			float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
 			accumulator->AddSample(x, y, clr);
 		}
 	}
