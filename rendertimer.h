@@ -22,7 +22,7 @@ public:
 		if (frameDuration > worstDuration)
 			worstDuration = frameDuration;
 
-		return duration >= sampleDuration;
+		return frames >= sampleFrames;
 	}
 
 	FrameStats getStatsAndReset() {
@@ -32,8 +32,8 @@ public:
 			worstDuration
 		};
 
-		frames = 0;
-		duration -= sampleDuration;
+		frames -= sampleFrames;
+		duration = 0;
 		bestDuration = FLT_MAX;
 		worstDuration = 0;
 
@@ -42,7 +42,7 @@ public:
 
 private:
 	Timer timer;
-	float sampleDuration = 1000.f; // time interval used to compute best/worst durations
+	int sampleFrames = 10; // number of frames used to compute min/max/avg
 
 	int frames = 0;
 	float duration = 0;

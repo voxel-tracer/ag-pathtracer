@@ -142,7 +142,7 @@
     <ClInclude Include="template\precomp.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="trianglemesh.h" />
-    <ClInclude Include="whitted.h" />
+    <ClInclude Include="integrator.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cl\kernels.cl" />
