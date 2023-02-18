@@ -180,7 +180,7 @@ public:
 		if (depth + 1 > MaxDepth) return L;
 
 		if (depth + 1 < MaxDepth) {
-			L += DiffuseReflection(hit, scene, depth);
+			L += IndirectLight(hit, scene, depth);
 			L += SpecularReflection(ray, hit, scene, depth);
 			L += SpecularTransmission(ray, hit, scene, depth);
 		}
@@ -189,16 +189,22 @@ public:
 	}
 
 protected:
-	float3 DiffuseReflection(const Hit& hit, const Scene& scene, int depth) const {
+	virtual float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
+		*pdf = INV2PI;
+		return RandomInHemisphere(N);
+	}
+
+	float3 IndirectLight(const Hit& hit, const Scene& scene, int depth) const {
 		if (isblack(hit.diffuse)) return float3(0.f);
 
 		// continue in random direction
-		auto R = RandomInHemisphere(hit.N);
+		float pdf;
+		auto R = SampleDirectionInHemisphere(hit.N, &pdf);
 		Ray newRay(hit.I + EPSILON * R, R);
 		// update throughput
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
 		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
-		return TWOPI * BRDF * Ei;
+		return BRDF * Ei / pdf;
 	}
 
 	float3 DirectLight(const Scene& scene, const Hit& hit) const {
@@ -227,4 +233,16 @@ protected:
 	}
 
 	int MaxDepth;
+};
+
+class PathTracer2 : public PathTracer {
+public:
+	PathTracer2(int maxDepth = 5) : PathTracer(maxDepth) {}
+
+protected:
+	virtual float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const override {
+		auto R = CosineWeightedRandomInHemisphere(N);
+		*pdf = dot(N, R) * INVPI;
+		return R;
+	}
 };

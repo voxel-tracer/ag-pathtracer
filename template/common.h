@@ -73,6 +73,25 @@ inline float3 RandomInHemisphere(const float3& N) {
 	return in_unit_sphere;
 }
 
+inline float3 TangentToWorld(const float3& N, const float3& V) {
+	auto w = N;
+	auto a = (fabs(w.x > .9f)) ? float3(0, 1, 0) : float3(1, 0, 0);
+	auto v = normalize(cross(w, a));
+	auto u = cross(w, v);
+	return V.x * u + V.y * v + V.z * w;
+}
+
+inline float3 CosineWeightedRandomInHemisphere(const float3& N) {
+	// work in tangent space where N=(0, 0, 1)
+	float r0 = RandomFloat(), r1 = RandomFloat();
+	float r = sqrt(r0);
+	float theta = TWOPI * r1;
+	float x = r * cos(theta);
+	float y = r * sin(theta);
+	float3 R(x, y, sqrt(1 - r0));
+	return TangentToWorld(N, R);
+}
+
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):
