@@ -186,7 +186,7 @@ public:
 
 
 	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
-		float3 T(1.f);
+		float3 T(1.f); // current ray throughput
 		float3 E(0.f);
 
 		Ray curRay = ray;
@@ -225,6 +225,11 @@ public:
 				T *= SampleSpecularTransmission(curRay, hit, scene, &R);
 				isSpecular = true;
 			}
+
+			// Russian roulette
+			float p = clamp(max(T.x, max(T.y, T.z)), EPSILON, 1.f);
+			if (RandomFloat() > p) break;
+			T *= 1.f / p; // add the energy we lose by randomly killing paths
 
 			curRay = Ray(hit.I + EPSILON * R, R);
 			depth++;
