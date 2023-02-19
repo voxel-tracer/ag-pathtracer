@@ -50,16 +50,12 @@ public:
 
 protected:
 	float3 SpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
-		if (isblack(hit.specular)) return float3(0.f);
-			
 		float3 D = reflect(ray.D, hit.N);
 		float3 O = hit.I + EPSILON * D;
 		return hit.specular * Li(Ray(O, D), scene, depth + 1, true);
 	}
 
 	float3 SpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
-		if (isblack(hit.transmission)) return float3(0.f);
-
 		// figure out if we are entering or exiting the object
 		auto entering = dot(ray.D, hit.N) < 0;
 		auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
@@ -102,59 +98,6 @@ protected:
 	}
 };
 
-class WhittedIntegrator : public Integrator {
-public:
-	WhittedIntegrator(int maxDepth = 5) : maxDepth(maxDepth) {}
-
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
-		float3 L(0.f);
-
-		Hit hit;
-		if (!scene.NearestIntersection(ray, hit)) {
-			for (const auto& light : scene.lights) L += light->Le(ray);
-			return L;
-		}
-
-		hit.EvalMaterial();
-
-		if (!isblack(hit.diffuse)) 
-			L += hit.diffuse * DirectIllumination(scene, hit.I, hit.N);
-
-		if (depth + 1 < maxDepth) {
-			L += SpecularReflection(ray, hit, scene, depth);
-			L += SpecularTransmission(ray, hit, scene, depth);
-		}
-
-		return L;
-	}
-protected:
-	float3 DirectIllumination(const Scene& scene, const float3 I, const float3& N) const {
-		float3 L(0.f);
-
-		for (const auto& light : scene.lights) {
-			float3 S, lightN;
-			light->Sample(I, &S, &lightN);
-			float3 Wi = S - I;
-			float dist = length(Wi);
-			Wi /= dist;
-
-			float cos_o = dot(-Wi, lightN);
-			float cos_i = dot(Wi, N);
-			if (cos_o <= 0 || cos_i <= 0.f) continue; // light is behind the surface
-			// trace a shadow ray
-			Ray shadowRay(I + EPSILON * Wi, Wi, dist - EPSILON);
-			Hit tmpHit;
-			if (scene.NearestIntersection(shadowRay, tmpHit)) continue; // light is obstructed
-			float3 Li = light->L / (dist * dist);
-			L += Li * cos_i;
-		}
-
-		return L;
-	}
-
-	int maxDepth;
-};
-
 class PathTracer : public Integrator {
 public:
 	PathTracer(int maxDepth = 5) : MaxDepth(maxDepth) {}
@@ -180,9 +123,13 @@ public:
 		if (depth + 1 > MaxDepth) return L;
 
 		if (depth + 1 < MaxDepth) {
-			L += IndirectLight(hit, scene, depth);
-			L += SpecularReflection(ray, hit, scene, depth);
-			L += SpecularTransmission(ray, hit, scene, depth);
+			// for now assume a material can only be diffuse or specular or refractive
+			if (!isblack(hit.diffuse))
+				L += IndirectLight(hit, scene, depth);
+			else if (!isblack(hit.specular))
+				L += SpecularReflection(ray, hit, scene, depth);
+			else if (!isblack(hit.transmission))
+				L += SpecularTransmission(ray, hit, scene, depth);
 		}
 
 		return L;
@@ -190,14 +137,12 @@ public:
 
 protected:
 	virtual float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
-		*pdf = INV2PI;
-		return RandomInHemisphere(N);
+		auto R = CosineWeightedRandomInHemisphere(N);
+		*pdf = dot(N, R) * INVPI;
+		return R;
 	}
 
 	float3 IndirectLight(const Hit& hit, const Scene& scene, int depth) const {
-		if (isblack(hit.diffuse)) return float3(0.f);
-
-		// continue in random direction
 		float pdf;
 		auto R = SampleDirectionInHemisphere(hit.N, &pdf);
 		Ray newRay(hit.I + EPSILON * R, R);
@@ -239,10 +184,107 @@ class PathTracer2 : public PathTracer {
 public:
 	PathTracer2(int maxDepth = 5) : PathTracer(maxDepth) {}
 
+
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
+		float3 T(1.f);
+		float3 E(0.f);
+
+		Ray curRay = ray;
+		while (true) {
+			Hit hit;
+			if (!scene.NearestIntersection(curRay, hit)) {
+				// Ray left the scene, handle infinite lights
+				for (const auto& light : scene.lights) E += T * light->Le(curRay);
+				break;
+			}
+
+			hit.EvalMaterial();
+
+			// terminate if we hit a light source
+			if (!isblack(hit.emission)) {
+				if (isSpecular) E += T * hit.emission;
+				break;
+			}
+
+			E += T * DirectLight(scene, hit);
+
+			// terminate if we exceed MaxDepth
+			if (depth + 1 > MaxDepth) break;
+
+			// for now assume a material can only be diffuse or specular or refractive
+			float3 R;
+			if (!isblack(hit.diffuse)) {
+				T *= SampleIndirectLight(hit, scene, &R);
+				isSpecular = false;
+			}
+			else if (!isblack(hit.specular)) {
+				T *= SampleSpecularReflection(curRay, hit, scene, &R);
+				isSpecular = true;
+			}
+			else if (!isblack(hit.transmission)) {
+				T *= SampleSpecularTransmission(curRay, hit, scene, &R);
+				isSpecular = true;
+			}
+
+			curRay = Ray(hit.I + EPSILON * R, R);
+			depth++;
+		}
+
+		return E;
+	}
+
 protected:
-	virtual float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const override {
-		auto R = CosineWeightedRandomInHemisphere(N);
-		*pdf = dot(N, R) * INVPI;
-		return R;
+	float3 SampleIndirectLight(const Hit& hit, const Scene& scene, float3* R) const {
+		float pdf;
+		*R = SampleDirectionInHemisphere(hit.N, &pdf);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		return BRDF * dot(hit.N, *R) / pdf;
+	}
+
+	float3 SampleSpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, float3* R) const {
+		*R =  reflect(ray.D, hit.N);
+		return hit.specular;
+	}
+
+	float3 SampleSpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, float3* R) const {
+		// figure out if we are entering or exiting the object
+		auto entering = dot(ray.D, hit.N) < 0;
+		auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
+
+		// absorption can only happen inside a glass (entering == false)
+		float3 transmission(1.0f);
+		if (!entering) transmission = pow(hit.transmission, ray.t);
+
+		// compute refraction index assuming external material is air
+		float etaI, etaT;
+		if (entering) { // air -> material
+			etaI = 1.0f; // air
+			etaT = hit.mat->ref_idx;
+		}
+		else { // material -> air
+			etaI = hit.mat->ref_idx;
+			etaT = 1.0f;
+		}
+
+		// thetaI is the incident angle
+		// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
+		float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
+
+		float3 T;
+		float Fr = 1;
+		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
+			// some light is refracted, compute Fresnel reflection
+			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
+			*R = T;
+			return (1 - Fr) * transmission;
+		}
+		else {
+			// total internal reflection
+			*R = reflect(hit.I, N);
+			return Fr * transmission;
+		}
+
+		return float3(0.f);
 	}
 };
