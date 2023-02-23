@@ -56,6 +56,7 @@ public:
 		auto glass = make_shared<Material>();
 		glass->ref_idx = ref_idx;
 		glass->transmission = SolidColor::make(transmission);
+		glass->specular = SolidColor::make(1.0f);
 		return glass;
 	}
 

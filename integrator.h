@@ -126,10 +126,10 @@ public:
 			// for now assume a material can only be diffuse or specular or refractive
 			if (!isblack(hit.diffuse))
 				L += IndirectLight(hit, scene, depth);
-			else if (!isblack(hit.specular))
-				L += SpecularReflection(ray, hit, scene, depth);
 			else if (!isblack(hit.transmission))
 				L += SpecularTransmission(ray, hit, scene, depth);
+			else if (!isblack(hit.specular))
+				L += SpecularReflection(ray, hit, scene, depth);
 		}
 
 		return L;
@@ -217,13 +217,49 @@ public:
 				T *= SampleIndirectLight(hit, scene, &R);
 				isSpecular = false;
 			}
-			else if (!isblack(hit.specular)) {
-				T *= SampleSpecularReflection(curRay, hit, scene, &R);
-				isSpecular = true;
-			}
-			else if (!isblack(hit.transmission)) {
-				T *= SampleSpecularTransmission(curRay, hit, scene, &R);
-				isSpecular = true;
+			else if (!isblack(hit.specular) || !isblack(hit.transmission)) {
+				auto entering = dot(curRay.D, hit.N) < 0;
+				auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
+
+				// absorption can only happen inside a glass (entering == false)
+				float3 transmission(1.0f);
+				if (!entering) transmission = pow(hit.transmission, curRay.t);
+
+				// compute refraction index assuming external material is air
+				float etaI, etaT;
+				if (entering) { // air -> material
+					etaI = 1.0f; // air
+					etaT = hit.mat->ref_idx;
+				}
+				else { // material -> air
+					etaI = hit.mat->ref_idx;
+					etaT = 1.0f;
+				}
+
+				// thetaI is the incident angle
+				// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
+				float cos_thetaI = fmaxf(dot(curRay.D, N), -1.0f);
+
+				// Compute Fresnel reflection
+				auto Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
+
+				// pick reflection or refraction randomly according to the Fresnel reflection
+				if (RandomFloat() < Fr) {
+					// Specular reflection
+					R = reflect(curRay.D, N);
+					T *= hit.specular;
+					isSpecular = true;
+				}
+				else {
+					// Specular refraction
+					if (!refract(curRay.D, N, cos_thetaI, etaI / etaT, R)) {
+						// total internal reflection
+						break;
+					}
+					
+					T *= transmission;
+					isSpecular = true;
+				}
 			}
 
 			// Russian roulette
@@ -245,51 +281,5 @@ protected:
 		// update throughput
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
 		return BRDF * dot(hit.N, *R) / pdf;
-	}
-
-	float3 SampleSpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, float3* R) const {
-		*R =  reflect(ray.D, hit.N);
-		return hit.specular;
-	}
-
-	float3 SampleSpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, float3* R) const {
-		// figure out if we are entering or exiting the object
-		auto entering = dot(ray.D, hit.N) < 0;
-		auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
-
-		// absorption can only happen inside a glass (entering == false)
-		float3 transmission(1.0f);
-		if (!entering) transmission = pow(hit.transmission, ray.t);
-
-		// compute refraction index assuming external material is air
-		float etaI, etaT;
-		if (entering) { // air -> material
-			etaI = 1.0f; // air
-			etaT = hit.mat->ref_idx;
-		}
-		else { // material -> air
-			etaI = hit.mat->ref_idx;
-			etaT = 1.0f;
-		}
-
-		// thetaI is the incident angle
-		// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
-		float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
-
-		float3 T;
-		float Fr = 1;
-		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
-			// some light is refracted, compute Fresnel reflection
-			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
-			*R = T;
-			return (1 - Fr) * transmission;
-		}
-		else {
-			// total internal reflection
-			*R = reflect(hit.I, N);
-			return Fr * transmission;
-		}
-
-		return float3(0.f);
 	}
 };
