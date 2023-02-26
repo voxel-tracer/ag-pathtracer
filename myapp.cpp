@@ -86,7 +86,7 @@ void MyApp::Init()
 	integratorL = integratorR; // make_shared<PathTracer>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
-	int2 scrPos((SCRWIDTH - MinScrSize) * .5f, (SCRHEIGHT - MinScrSize) * .5f);
+	int2 scrPos((SCRWIDTH - MinScrSize) / 2, (SCRHEIGHT - MinScrSize) / 2);
 	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize, scrPos);
 }
 
@@ -139,7 +139,11 @@ void MyApp::Tick( float deltaTime )
 		if (scene->NearestIntersection(ray, hit)) {
 			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.I));
 			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.N));
-			screen->Line(p.x, p.y, n.x, n.y, 0xFFFFFF);
+			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdu));
+			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdv));
+			screen->Line(p.x, p.y, n.x, n.y, 0x0000FF);
+			screen->Line(p.x, p.y, dpdu.x, dpdu.y, 0xFF0000);
+			screen->Line(p.x, p.y, dpdv.x, dpdv.y, 0x00FF00);
 			screen->Box((int)p.x - 5, (int)p.y - 5, (int)p.x + 5, (int)p.y + 5, 0xFF0000);
 		}
 	}

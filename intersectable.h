@@ -9,6 +9,9 @@ public:
 	float u;
 	float v;
 
+	float3 dpdu = float3(0.f);
+	float3 dpdv = float3(0.f);
+
 	float3 diffuse;
 	float3 specular;
 	float3 transmission;
@@ -109,6 +112,20 @@ public:
 		hit.mat = mat.get();
 		hit.I = ray.at(root);
 		hit.N = normalize(hit.I - Center);
+
+		// compute point partial derivatives
+		float3 pHit = hit.I - Center; // intersection point in Sphere's local coordinates system
+		if (pHit.x == 0 && pHit.y == 0) pHit.x = EPSILON * r;
+		float phi = atan2(pHit.y, pHit.x);
+		if (phi < 0) phi += TWOPI;
+		float theta = acos(clamp(pHit.z / r, -1.f, 1.f));
+		float zRadius = sqrt(pHit.x * pHit.x + pHit.y * pHit.y);
+		float invZRadius = 1 / zRadius;
+		float cosPhi = pHit.x * invZRadius;
+		float sinPhi = pHit.y * invZRadius;
+		hit.dpdu = float3(-TWOPI * pHit.y, TWOPI * pHit.x, 0);
+		hit.dpdv = PI * float3(pHit.z * cosPhi, pHit.z * sinPhi, -r * sin(theta));
+
 		return true;
 	}
 
