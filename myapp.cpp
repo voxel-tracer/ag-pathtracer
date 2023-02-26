@@ -21,7 +21,7 @@ shared_ptr<Scene> BunnyScene() {
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-0.1.obj", mat, transform, true);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-lowpoly.obj", mat, transform, true);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
 	primitives.push_back(make_shared<Sphere>(float3(2, 0, 0), .5f, glass));
@@ -86,7 +86,8 @@ void MyApp::Init()
 	integratorL = integratorR; // make_shared<PathTracer>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
-	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize);
+	int2 scrPos((SCRWIDTH - MinScrSize) * .5f, (SCRHEIGHT - MinScrSize) * .5f);
+	accumulator = make_shared<Accumulator>(MinScrSize, MinScrSize, scrPos);
 }
 
 // -----------------------------------------------------------
@@ -111,12 +112,12 @@ void MyApp::Tick( float deltaTime )
 
 		accumulator->IncrementSampleCount();
 
-		for (int y = 0; y < RenderHeight; y++) {
-			float v = (y + RandomFloat()) / RenderHeight;
-			for (int x = 0; x < RenderWidth; x++) {
-				float u = (x + RandomFloat()) / RenderWidth;
-				Ray ray = camera->GetRay(u, v);
-				float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
+		for (int y = 0; y < accumulator->height; y++) {
+			for (int x = 0; x < accumulator->width; x++) {
+				float2 p(x + RandomFloat(), y + RandomFloat());
+				float2 uv = accumulator->PixelToFilm(p);
+				Ray ray = camera->GetRay(uv.x, uv.y);
+				float3 clr = (uv.x < 0.5f) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
 				accumulator->AddSample(x, y, clr);
 			}
 		}
@@ -129,16 +130,15 @@ void MyApp::Tick( float deltaTime )
 	}
 
 
-	accumulator->CopyToSurface(screen, (int)scrTopLeft.x, (int)scrTopLeft.y);
+	accumulator->CopyToSurface(screen);
 
-	if (paused && mousePos.x >= scrTopLeft.x && mousePos.x < (scrTopLeft.x + RenderWidth) &&
-		mousePos.y >= scrTopLeft.y && mousePos.y < (scrTopLeft.y + RenderHeight)) {
-		// 
-		Ray ray = camera->GetRay((mousePos.x - scrTopLeft.x) / RenderWidth, (mousePos.y - scrTopLeft.y) / RenderHeight);
+	if (paused && accumulator->IsInside(mousePos.x, mousePos.y)) {
+		auto fc = accumulator->WindowToFilm(mousePos);
+		Ray ray = camera->GetRay(fc.x, fc.y);
 		Hit hit;
 		if (scene->NearestIntersection(ray, hit)) {
-			auto p = ScreenToPixel(camera->WorldToScreen(hit.I));
-			auto n = ScreenToPixel(camera->WorldToScreen(hit.I + hit.N));
+			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.I));
+			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.N));
 			screen->Line(p.x, p.y, n.x, n.y, 0xFFFFFF);
 			screen->Box((int)p.x - 5, (int)p.y - 5, (int)p.x + 5, (int)p.y + 5, 0xFF0000);
 		}

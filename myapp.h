@@ -7,7 +7,7 @@ namespace Tmpl8
 
 class Accumulator {
 public:
-	Accumulator(int w, int h) : width(w), height(h), samples(0) {
+	Accumulator(int w, int h, const int2& scrPos) : width(w), height(h), samples(0), screenPos(scrPos) {
 		pixels = (float3*)MALLOC64(width * height * sizeof(float3));
 		Clear();
 	}
@@ -31,18 +31,37 @@ public:
 		samples = 0;
 	}
 
-	inline void CopyToSurface(Surface* screen, int offsetX, int offsetY) const {
+	inline void CopyToSurface(Surface* screen) const {
 		for (auto y = 0; y < height; y++) {
 			for (auto x = 0; x < width; x++) {
 				auto rgb = lin2rgb(pixels[y * width + x] / (float)samples); // Gamma correction
-				screen->Plot(x + offsetX, y + offsetY, rgb2uint(rgb));
+				screen->Plot(x + screenPos.x, y + screenPos.y, rgb2uint(rgb));
 			}
 		}
 	}
 
+	bool IsInside(int x, int y) const {
+		return x >= screenPos.x && x < (screenPos.x + width) && y >= screenPos.y && y < (screenPos.y + height);
+	}
+
+	inline float2 FilmToWindow(const float2& p) const {
+		return float2(p.x * width + screenPos.x, p.y * height + screenPos.y);
+	}
+
+	inline float2 WindowToFilm(const int2& p) const {
+		return float2((float)(p.x - screenPos.x) / width, (float)(p.y - screenPos.y) / height);
+	}
+
+	inline float2 PixelToFilm(const float2& p) const {
+		return float2(p.x / width, p.y / height);
+	}
+
+
+	const int width, height;
+
 private:
+	int2 screenPos;
 	float3* pixels;
-	int width, height;
 	int samples;
 };
 
@@ -86,15 +105,6 @@ public:
 	shared_ptr<Accumulator> accumulator;
 
 	bool paused = false;
-
-	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
-	const int RenderWidth = MinScrSize;
-	const int RenderHeight = MinScrSize;
-	const float2 scrTopLeft = { (SCRWIDTH - RenderWidth) / 2.f, (SCRHEIGHT - RenderHeight) / 2.f };
-
-	float2 ScreenToPixel(const float2& p) const {
-		return float2(p.x * RenderWidth + scrTopLeft.x, p.y * RenderHeight + scrTopLeft.y);
-	}
 };
 
 } // namespace Tmpl8
