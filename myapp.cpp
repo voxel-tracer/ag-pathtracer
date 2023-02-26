@@ -24,7 +24,7 @@ shared_ptr<Scene> BunnyScene() {
 	auto trimesh = TriangleMesh::LoadObj("D://models/bunny-0.1.obj", mat, transform, true);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
-	//primitives.push_back(make_shared<Sphere>(float3(2, 0, 0), .5f, glass));
+	primitives.push_back(make_shared<Sphere>(float3(2, 0, 0), .5f, glass));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f };
 	//camera.aperture = .1f;
@@ -96,7 +96,7 @@ void MyApp::Init()
 void MyApp::Tick( float deltaTime )
 {
 	// rotate camera if mouse moved since last tick
-	if (mouseDiff.x != 0 || mouseDiff.y != 0) {
+	if (!paused && (mouseDiff.x != 0 || mouseDiff.y != 0)) {
 		float rotation_speed = 0.005f;
 		camera->update(float2(mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
 		accumulator->Clear();
@@ -106,31 +106,43 @@ void MyApp::Tick( float deltaTime )
 	// clear the screen to black
 	screen->Clear(0);
 
-	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
+	if (!paused) {
+		timer.start();
 
-	timer.start();
+		accumulator->IncrementSampleCount();
 
-	accumulator->IncrementSampleCount();
+		for (int y = 0; y < RenderHeight; y++) {
+			float v = (y + RandomFloat()) / RenderHeight;
+			for (int x = 0; x < RenderWidth; x++) {
+				float u = (x + RandomFloat()) / RenderWidth;
+				Ray ray = camera->GetRay(u, v);
+				float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
+				accumulator->AddSample(x, y, clr);
+			}
+		}
 
-	const int RenderWidth = MinScrSize;
-	const int RenderHeight = MinScrSize;
-	for (int y = 0; y < RenderHeight; y++) {
-		float v = (y + RandomFloat()) / RenderHeight;
-		for (int x = 0; x < RenderWidth; x++) {
-			float u = (x + RandomFloat()) / RenderWidth;
-			Ray ray = camera->GetRay(u, v);
-			float3 clr = (x < RenderWidth / 2) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
-			accumulator->AddSample(x, y, clr);
+		if (timer.stop()) {
+			auto stats = timer.getStatsAndReset();
+			printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r",
+				accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
 		}
 	}
 
-	if (timer.stop()) {
-		auto stats = timer.getStatsAndReset();
-		printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r", 
-			accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
-	}
 
-	accumulator->CopyToSurface(screen, (SCRWIDTH - RenderWidth) / 2, (SCRHEIGHT - RenderHeight) / 2);
+	accumulator->CopyToSurface(screen, (int)scrTopLeft.x, (int)scrTopLeft.y);
+
+	if (paused && mousePos.x >= scrTopLeft.x && mousePos.x < (scrTopLeft.x + RenderWidth) &&
+		mousePos.y >= scrTopLeft.y && mousePos.y < (scrTopLeft.y + RenderHeight)) {
+		// 
+		Ray ray = camera->GetRay((mousePos.x - scrTopLeft.x) / RenderWidth, (mousePos.y - scrTopLeft.y) / RenderHeight);
+		Hit hit;
+		if (scene->NearestIntersection(ray, hit)) {
+			auto p = ScreenToPixel(camera->WorldToScreen(hit.I));
+			auto n = ScreenToPixel(camera->WorldToScreen(hit.I + hit.N));
+			screen->Line(p.x, p.y, n.x, n.y, 0xFFFFFF);
+			screen->Box((int)p.x - 5, (int)p.y - 5, (int)p.x + 5, (int)p.y + 5, 0xFF0000);
+		}
+	}
 
 #if 0
 

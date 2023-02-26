@@ -72,7 +72,7 @@ public:
 	}
 	void MouseWheel( float y ) { /* implement if you want to handle the mouse wheel */ }
 	void KeyUp( int key ) { /* implement if you want to handle keys */ }
-	void KeyDown( int key ) { /* implement if you want to handle keys */ }
+	void KeyDown(int key) { if (key == GLFW_KEY_P) paused = !paused; }
 	// data members
 	int2 mousePos;
 	int2 mouseDiff;
@@ -84,6 +84,17 @@ public:
 
 	RenderTimer timer;
 	shared_ptr<Accumulator> accumulator;
+
+	bool paused = false;
+
+	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
+	const int RenderWidth = MinScrSize;
+	const int RenderHeight = MinScrSize;
+	const float2 scrTopLeft = { (SCRWIDTH - RenderWidth) / 2.f, (SCRHEIGHT - RenderHeight) / 2.f };
+
+	float2 ScreenToPixel(const float2& p) const {
+		return float2(p.x * RenderWidth + scrTopLeft.x, p.y * RenderHeight + scrTopLeft.y);
+	}
 };
 
 } // namespace Tmpl8
