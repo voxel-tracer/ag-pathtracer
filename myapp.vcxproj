@@ -136,6 +136,7 @@
     <ClInclude Include="intersectable.h" />
     <ClInclude Include="lights.h" />
     <ClInclude Include="material.h" />
+    <ClInclude Include="microfacet.h" />
     <ClInclude Include="myapp.h" />
     <ClInclude Include="rendertimer.h" />
     <ClInclude Include="template\common.h" />

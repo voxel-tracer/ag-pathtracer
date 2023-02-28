@@ -2,6 +2,7 @@
 #include "integrator.h"
 #include "bvhtrimesh.h"
 #include "myapp.h"
+#include "microfacet.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_USE_MAPBOX_EARCUT
@@ -77,8 +78,8 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	//scene = GlassScene();
-	scene = BunnyScene();
+	scene = GlassScene();
+	//scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);

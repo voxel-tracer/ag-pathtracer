@@ -704,6 +704,11 @@ inline uint dot( const uint2& a, const uint2& b ) { return a.x * b.x + a.y * b.y
 inline uint dot( const uint3& a, const uint3& b ) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 inline uint dot( const uint4& a, const uint4& b ) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
 
+inline float absdot(const float3& a, const float3& b) { return abs(dot(a, b)); }
+inline float3 sqrt(const float3& v) { return float3(sqrt(v.x), sqrt(v.y), sqrt(v.z)); }
+inline float3 Faceforward(const float3& v, const float3& v2) { return (dot(v, v2) < 0.f) ? -v : v; }
+inline bool SameHemisphere(const float3& w, const float3& wp) { return w.z * wp.z > 0; }
+
 inline float sqrLength( const float2& v ) { return dot( v, v ); }
 inline float sqrLength( const float3& v ) { return dot( v, v ); }
 inline float sqrLength( const float4& v ) { return dot( v, v ); }

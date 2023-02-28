@@ -26,6 +26,7 @@
     <ClInclude Include="trianglemesh.h" />
     <ClInclude Include="bvhtrimesh.h" />
     <ClInclude Include="lights.h" />
+    <ClInclude Include="microfacet.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">
