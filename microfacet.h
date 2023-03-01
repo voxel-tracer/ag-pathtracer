@@ -102,7 +102,9 @@ public:
         return 1.62142f + 0.819955f * x + 0.1734f * x * x + 0.0171201f * x * x * x + 0.000640711f * x * x * x * x;
     }
 
-    MicrofacetDistribution(float alphax, float alphay) : alphax(alphax), alphay(alphay) {}
+    MicrofacetDistribution(float alphax, float alphay) : 
+        alphax(std::max(0.001f, alphax)), 
+        alphay(std::max(0.001f, alphay)) {}
 
     float D(const float3& wh) const {
         float tan2Theta = Tan2Theta(wh);

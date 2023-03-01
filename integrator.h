@@ -118,7 +118,7 @@ public:
 		if (!isblack(hit.emission)) 
 			return isSpecular ? hit.emission : float3(0.f);
 
-		L += DirectLight(scene, hit);
+		L += DirectLight(scene, -ray.D, hit);
 		// terminate if we exceed MaxDepth
 		if (depth + 1 > MaxDepth) return L;
 
@@ -152,8 +152,8 @@ protected:
 		return BRDF * Ei / pdf;
 	}
 
-	float3 DirectLight(const Scene& scene, const Hit& hit) const {
-		if (isblack(hit.diffuse)) return float3(0.f);
+	float3 DirectLight(const Scene& scene, const float3& wo, const Hit& hit) const {
+		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
 
 		// pick one random light
 		int lights = (int)(scene.lights.size());
@@ -172,7 +172,13 @@ protected:
 		Hit tmpHit;
 		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
 		// light is visible, calculate transport
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		float3 BRDF;
+		if (hit.hasBSDF) {
+			BRDF = hit.bsdf.f(wo, toL);
+		}
+		else {
+			BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		}
 		float solidAngle = (cos_o * light->Area()) / (dist * dist);
 		return BRDF * (float)lights * light->L * solidAngle * cos_i;
 	}
@@ -206,14 +212,19 @@ public:
 				break;
 			}
 
-			E += T * DirectLight(scene, hit);
+			float3 wo = -curRay.D;
+
+			E += T * DirectLight(scene, wo, hit);
 
 			// terminate if we exceed MaxDepth
 			if (depth + 1 > MaxDepth) break;
 
 			// for now assume a material can only be diffuse or specular or refractive
 			float3 R;
-			if (!isblack(hit.diffuse)) {
+			if (hit.hasBSDF) {
+				T *= SampleMicrofacet(hit, scene, wo, &R);
+				isSpecular = false;
+			} else if (!isblack(hit.diffuse)) {
 				T *= SampleIndirectLight(hit, scene, &R);
 				isSpecular = false;
 			}
@@ -281,5 +292,13 @@ protected:
 		// update throughput
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
 		return BRDF * dot(hit.N, *R) / pdf;
+	}
+
+	float3 SampleMicrofacet(const Hit& hit, const Scene& scene, const float3& wo, float3* R) const {
+		float pdf;
+		float2 u(RandomFloat(), RandomFloat());
+		float3 BRDF = hit.bsdf.Sample_f(wo, R, u, &pdf);
+		if (pdf == 0) return float3(0.f);
+		return BRDF * absdot(hit.N, *R) / pdf;
 	}
 };

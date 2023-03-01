@@ -1,5 +1,11 @@
 #pragma once
 
+#include "material.h"
+#include "camera.h"
+#include "reflection.h"
+
+class BSDF;
+
 class Hit {
 public:
 	float3 I; // intersection point
@@ -16,8 +22,15 @@ public:
 	float3 specular;
 	float3 transmission;
 	float3 emission;
+	BSDF bsdf;
+	bool hasBSDF = false;
 
 	void EvalMaterial() {
+		if (mat->microfacet) {
+			bsdf = BSDF(N, dpdu, mat->microfacet.get());
+			hasBSDF = true;
+		}
+
 		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
 		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);
 		transmission = (mat->transmission) ? mat->transmission->value(u, v) : float3(0.f);

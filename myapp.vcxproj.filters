@@ -27,6 +27,7 @@
     <ClInclude Include="bvhtrimesh.h" />
     <ClInclude Include="lights.h" />
     <ClInclude Include="microfacet.h" />
+    <ClInclude Include="reflection.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">

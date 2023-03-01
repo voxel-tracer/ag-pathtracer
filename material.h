@@ -44,7 +44,8 @@ public:
 	shared_ptr<Texture> diffuse;
 	shared_ptr<Texture> specular;
 	shared_ptr<Texture> transmission;
-	float3 emission;
+	shared_ptr<MicrofacetReflection> microfacet;
+	float3 emission = float3(0.f);
 
 	static shared_ptr<Material> make_lambertian(shared_ptr<Texture> diffuse) {
 		auto lambertian = make_shared<Material>();
@@ -69,6 +70,18 @@ public:
 	static shared_ptr<Material> make_emitter(float r, float g, float b) {
 		auto mat = make_shared <Material>();
 		mat->emission = float3(r, g, b);
+		return mat;
+	}
+
+	static shared_ptr<Material> make_metal(float roughness, const float3& eta, const float3& k) {
+		auto mat = make_shared<Material>();
+
+		float uRough = MicrofacetDistribution::RoughnessToAlpha(roughness);
+		float vRough = MicrofacetDistribution::RoughnessToAlpha(roughness);
+		MicrofacetDistribution* distribution = new MicrofacetDistribution(uRough, vRough);
+		Fresnel* fresnel = new FresnelConductor(float3(1.f), eta, k);
+		mat->microfacet = make_shared<MicrofacetReflection>(float3(1.f), distribution, fresnel);
+		mat->emission = float3(0.f);
 		return mat;
 	}
 };

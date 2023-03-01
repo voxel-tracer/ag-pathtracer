@@ -1,8 +1,8 @@
 #include "precomp.h"
+#include "reflection.h"
 #include "integrator.h"
 #include "bvhtrimesh.h"
 #include "myapp.h"
-#include "microfacet.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_USE_MAPBOX_EARCUT
@@ -43,18 +43,23 @@ shared_ptr<Scene> BunnyScene() {
 	return scene;
 }
 
-shared_ptr<Scene> GlassScene() {
-	float3 dark_red(.1f, 0.f, 0.f);
+shared_ptr<Scene> MicrofacetTestScene() {
 	auto light_grey = make_shared<SolidColor>(.8f);
 	auto dark_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	auto mat = Material::make_glass(1.125f);
 	auto floor = Material::make_lambertian(checker);
+	auto copper = Material::make_metal(0.1f, float3(0.19999069, 0.92208463, 1.09987593), float3(3.90463543, 2.44763327, 2.13765264));
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(.5f, .25f - EPSILON, .5f), .75f, mat));
+	primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, copper));
+
+	// add an emitting sphere
+	auto lightE = float3(523, 342, 342);
+	auto lightMat = Material::make_emitter(523, 342, 342);
+	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
+	primitives.push_back(light);
 
 	CameraDesc camera;
 	camera.lookfrom = float3(3.f, -1.5f, 4.f);
@@ -64,8 +69,8 @@ shared_ptr<Scene> GlassScene() {
 	//camera.aperture = .1f;
 
 	auto scene = make_shared<Scene>(primitives, camera);
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-	scene->lights.push_back(make_shared<PointLight>(float3(-30, -100, 40), float3(52300, 34200, 34200)));
+	//scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
 
 	return scene;
 }
@@ -78,7 +83,7 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	scene = GlassScene();
+	scene = MicrofacetTestScene();
 	//scene = BunnyScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
