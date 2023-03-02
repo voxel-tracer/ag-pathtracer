@@ -5,7 +5,7 @@
 class BSDF {
 public:
     BSDF() {}
-    BSDF(const float3& N, const float3& dpdu, MicrofacetReflection* bxdf, float eta = 1.f)
+    BSDF(const float3& N, const float3& dpdu, BxDF* bxdf, float eta = 1.f)
         : eta(eta),
         ng(N),
         ns(N),
@@ -49,5 +49,5 @@ public:
 private:
     float eta;
     float3 ng, ns, ss, ts; // shading coordinate system
-    MicrofacetReflection* bxdf;
+    BxDF* bxdf;
 };

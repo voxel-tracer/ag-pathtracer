@@ -224,12 +224,26 @@ private:
     float etaI, etaT;
 };
 
+class BxDF {
+public:
+    virtual float3 f(const float3& wo, const float3& wi) const = 0;
+    virtual float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const {
+        // Cosine-sample the hemisphere, flipping the direction if necessary
+        *wi = CosineWeightedRandomInHemisphere(float3(0, 0, 1));
+        if (wo.z < 0) wi->z *= -1;
+        *pdf = Pdf(wo, *wi);
+        return f(wo, *wi);
+    }
+    virtual float Pdf(const float3& wo, const float3& wi) const {
+        return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INVPI : 0;
+    }
+};
 
-class MicrofacetReflection {
+class MicrofacetReflection : public BxDF {
 public:
     MicrofacetReflection(const float3& R, MicrofacetDistribution* distribution, Fresnel* fresnel)
         : R(R), distribution(distribution), fresnel(fresnel) {}
-    float3 f(const float3& wo, const float3& wi) const {
+    virtual float3 f(const float3& wo, const float3& wi) const override {
         float cosThetaO = AbsCosTheta(wo), cosThetaI = AbsCosTheta(wi);
         float3 wh = wi + wo;
         // Handle degenerate cases for microfacet reflection
@@ -242,7 +256,7 @@ public:
         return R * distribution->D(wh) * distribution->G(wo, wi) * F /
             (4 * cosThetaI * cosThetaO);
     }
-    float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const {
+    virtual float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const override {
         // Sample microfacet orientation $\wh$ and reflected direction $\wi$
         if (wo.z == 0) return 0.;
         float3 wh = distribution->Sample_wh(wo, u);
@@ -254,7 +268,7 @@ public:
         *pdf = distribution->Pdf(wo, wh) / (4 * dot(wo, wh));
         return f(wo, *wi);
     }
-    float Pdf(const float3& wo, const float3& wi) const {
+    virtual float Pdf(const float3& wo, const float3& wi) const override {
         if (!SameHemisphere(wo, wi)) return 0;
         float3 wh = normalize(wo + wi);
         return distribution->Pdf(wo, wh) / (4 * dot(wo, wh));
