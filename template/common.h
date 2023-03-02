@@ -2,8 +2,8 @@
 // global settings and defines.
 
 // default screen resolution
-#define SCRWIDTH	1280
-#define SCRHEIGHT	720
+#define SCRWIDTH	400
+#define SCRHEIGHT	400
 // #define FULLSCREEN
 
 // constants
@@ -14,6 +14,8 @@
 #define SQRT_PI_INV	0.56418958355f
 #define LARGE_FLOAT	1e34f
 #define EPSILON		0.0001f
+
+static const float FloatOneMinusEpsilon = 0x1.fffffep-1;
 
 // Utility functions
 inline float radians(float degrees) {

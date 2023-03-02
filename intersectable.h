@@ -27,7 +27,8 @@ public:
 
 	void EvalMaterial() {
 		if (mat->microfacet) {
-			bsdf = BSDF(N, dpdu, mat->microfacet.get());
+			bsdf = BSDF(N, dpdu);
+			bsdf.AddBxDF(mat->microfacet.get());
 			hasBSDF = true;
 		}
 
