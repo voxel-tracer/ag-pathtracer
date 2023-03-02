@@ -93,8 +93,23 @@ static float3 TrowbridgeReitzSample(const float3& wi, float alpha_x, float alpha
     return normalize(float3(-slope_x, -slope_y, 1.));
 }
 
-// TrowbridgeReitzDistribution
 class MicrofacetDistribution {
+public:
+    virtual float D(const float3& wh) const = 0;
+    virtual float Lambda(const float3& w) const = 0;
+    float G1(const float3& w) const {
+        return 1 / (1 + Lambda(w));
+    }
+    virtual float G(const float3& wo, const float3& wi) const {
+        return 1 / (1 + Lambda(wo) + Lambda(wi));
+    }
+    virtual float3 Sample_wh(const float3& wo, const float2& u) const = 0;
+    float Pdf(const float3& wo, const float3& wh) const {
+        return D(wh) * G1(wo) * absdot(wo, wh) / AbsCosTheta(wo);
+    }
+};
+
+class TrowbridgeReitzDistribution : public MicrofacetDistribution {
 public:
     static inline float RoughnessToAlpha(float roughness) {
         roughness = max(roughness, (float)1e-3);
@@ -102,11 +117,11 @@ public:
         return 1.62142f + 0.819955f * x + 0.1734f * x * x + 0.0171201f * x * x * x + 0.000640711f * x * x * x * x;
     }
 
-    MicrofacetDistribution(float alphax, float alphay) : 
+    TrowbridgeReitzDistribution(float alphax, float alphay) :
         alphax(std::max(0.001f, alphax)), 
         alphay(std::max(0.001f, alphay)) {}
 
-    float D(const float3& wh) const {
+    virtual float D(const float3& wh) const override {
         float tan2Theta = Tan2Theta(wh);
         if (isinf(tan2Theta)) return 0.;
         const float cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
@@ -116,7 +131,7 @@ public:
         return 1 / (PI * alphax * alphay * cos4Theta * (1 + e) * (1 + e));
     }
 
-    float3 Sample_wh(const float3& wo, const float2& u) const {
+    virtual float3 Sample_wh(const float3& wo, const float2& u) const override {
         float3 wh;
         bool flip = wo.z < 0;
         wh = TrowbridgeReitzSample(flip ? -wo : wo, alphax, alphay, u[0], u[1]);
@@ -124,20 +139,7 @@ public:
         return wh;
     }
 
-    float G1(const float3& w) const {
-        return 1 / (1 + Lambda(w));
-    }
-
-    float G(const float3& wo, const float3& wi) const {
-        return 1 / (1 + Lambda(wo) + Lambda(wi));
-    }
-
-    float Pdf(const float3& wo, const float3& wh) const {
-        return D(wh) * G1(wo) * absdot(wo, wh) / AbsCosTheta(wo);
-    }
-
-private:
-    float Lambda(const float3& w) const {
+    virtual float Lambda(const float3& w) const override {
         float absTanTheta = abs(TanTheta(w));
         if (isinf(absTanTheta)) return 0.f;
         // Compute _alpha_ for direction _w_
@@ -146,6 +148,7 @@ private:
         return (-1 + sqrt(1.f + alpha2Tan2Theta)) / 2;
     }
 
+private:
     const float alphax, alphay;
 };
 
@@ -222,61 +225,4 @@ public:
     }
 private:
     float etaI, etaT;
-};
-
-class BxDF {
-public:
-    virtual float3 f(const float3& wo, const float3& wi) const = 0;
-    virtual float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const {
-        // Cosine-sample the hemisphere, flipping the direction if necessary
-        *wi = CosineWeightedRandomInHemisphere(float3(0, 0, 1));
-        if (wo.z < 0) wi->z *= -1;
-        *pdf = Pdf(wo, *wi);
-        return f(wo, *wi);
-    }
-    virtual float Pdf(const float3& wo, const float3& wi) const {
-        return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INVPI : 0;
-    }
-};
-
-class MicrofacetReflection : public BxDF {
-public:
-    MicrofacetReflection(const float3& R, MicrofacetDistribution* distribution, Fresnel* fresnel)
-        : R(R), distribution(distribution), fresnel(fresnel) {}
-    virtual float3 f(const float3& wo, const float3& wi) const override {
-        float cosThetaO = AbsCosTheta(wo), cosThetaI = AbsCosTheta(wi);
-        float3 wh = wi + wo;
-        // Handle degenerate cases for microfacet reflection
-        if (cosThetaI == 0 || cosThetaO == 0) return float3(0.f);
-        if (wh.x == 0 && wh.y == 0 && wh.z == 0) return float3 (0.f);
-        wh = normalize(wh);
-        // For the Fresnel call, make sure that wh is in the same hemisphere
-        // as the surface normal, so that TIR is handled correctly.
-        float3 F = fresnel->Evaluate(dot(wi, Faceforward(wh, float3(0, 0, 1))));
-        return R * distribution->D(wh) * distribution->G(wo, wi) * F /
-            (4 * cosThetaI * cosThetaO);
-    }
-    virtual float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const override {
-        // Sample microfacet orientation $\wh$ and reflected direction $\wi$
-        if (wo.z == 0) return 0.;
-        float3 wh = distribution->Sample_wh(wo, u);
-        if (dot(wo, wh) < 0) return 0.;   // Should be rare
-        *wi = Reflect(wo, wh);
-        if (!SameHemisphere(wo, *wi)) return float3(0.f);
-
-        // Compute PDF of _wi_ for microfacet reflection
-        *pdf = distribution->Pdf(wo, wh) / (4 * dot(wo, wh));
-        return f(wo, *wi);
-    }
-    virtual float Pdf(const float3& wo, const float3& wi) const override {
-        if (!SameHemisphere(wo, wi)) return 0;
-        float3 wh = normalize(wo + wi);
-        return distribution->Pdf(wo, wh) / (4 * dot(wo, wh));
-    }
-
-private:
-    const float3 R;
-    // TODO simplify distribution attribute as we only support a single type of microfacet distribution
-    const MicrofacetDistribution* distribution;
-    const Fresnel* fresnel;
 };

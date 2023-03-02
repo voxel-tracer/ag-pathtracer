@@ -76,9 +76,9 @@ public:
 	static shared_ptr<Material> make_metal(float roughness, const float3& eta, const float3& k) {
 		auto mat = make_shared<Material>();
 
-		float uRough = MicrofacetDistribution::RoughnessToAlpha(roughness);
-		float vRough = MicrofacetDistribution::RoughnessToAlpha(roughness);
-		MicrofacetDistribution* distribution = new MicrofacetDistribution(uRough, vRough);
+		float uRough = TrowbridgeReitzDistribution::RoughnessToAlpha(roughness);
+		float vRough = TrowbridgeReitzDistribution::RoughnessToAlpha(roughness);
+		MicrofacetDistribution* distribution = new TrowbridgeReitzDistribution(uRough, vRough);
 		Fresnel* fresnel = new FresnelConductor(float3(1.f), eta, k);
 		mat->microfacet = make_shared<MicrofacetReflection>(float3(1.f), distribution, fresnel);
 		mat->emission = float3(0.f);
