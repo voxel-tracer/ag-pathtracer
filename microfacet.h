@@ -247,7 +247,7 @@ public:
         if (wo.z == 0) return 0.;
         float3 wh = distribution->Sample_wh(wo, u);
         if (dot(wo, wh) < 0) return 0.;   // Should be rare
-        *wi = reflect(wo, wh);
+        *wi = Reflect(wo, wh);
         if (!SameHemisphere(wo, *wi)) return float3(0.f);
 
         // Compute PDF of _wi_ for microfacet reflection
