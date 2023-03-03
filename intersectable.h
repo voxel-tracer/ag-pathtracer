@@ -33,9 +33,12 @@ public:
 		}
 		else if (mat->disney) {
 			bsdf = BSDF(N, dpdu);
-			bsdf.AddBxDF(mat->disney->diffuse.get());
-			bsdf.AddBxDF(mat->disney->retro.get());
-			bsdf.AddBxDF(mat->disney->microfacet.get());
+			if (mat->disney->diffuse)
+				bsdf.AddBxDF(mat->disney->diffuse.get());
+			if (mat->disney->retro)
+				bsdf.AddBxDF(mat->disney->retro.get());
+			if (mat->disney->microfacet)
+				bsdf.AddBxDF(mat->disney->microfacet.get());
 			hasBSDF = true;
 		}
 
