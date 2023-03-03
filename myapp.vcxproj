@@ -133,6 +133,7 @@
     <ClInclude Include="bvhtrimesh.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cl\tools.cl" />
+    <ClInclude Include="disney.h" />
     <ClInclude Include="intersectable.h" />
     <ClInclude Include="lights.h" />
     <ClInclude Include="material.h" />

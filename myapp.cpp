@@ -1,5 +1,5 @@
 #include "precomp.h"
-#include "reflection.h"
+#include "disney.h"
 #include "integrator.h"
 #include "bvhtrimesh.h"
 #include "myapp.h"
@@ -49,12 +49,13 @@ shared_ptr<Scene> MicrofacetTestScene() {
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
 	auto floor = Material::make_lambertian(checker);
-	auto copper = Material::make_metal(0.01f, float3(0.19999069, 0.92208463, 1.09987593), float3(3.90463543, 2.44763327, 2.13765264));
-	auto silver = Material::make_metal(0.1f, float3(0.154935181, 0.116475478, 0.138087392), float3(4.81810093, 3.11561656, 2.1424017));
+	auto copper = Material::make_metal(0.0001f, float3(0.19999069, 0.92208463, 1.09987593), float3(3.90463543, 2.44763327, 2.13765264));
+	auto silver = Material::make_metal(0.01f, float3(0.154935181, 0.116475478, 0.138087392), float3(4.81810093, 3.11561656, 2.1424017));
+	auto disney = Material::make_disney(float3(.8f, .2f, .2f), .5f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, copper));
+	primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, disney));
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);

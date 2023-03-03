@@ -31,6 +31,13 @@ public:
 			bsdf.AddBxDF(mat->microfacet.get());
 			hasBSDF = true;
 		}
+		else if (mat->disney) {
+			bsdf = BSDF(N, dpdu);
+			bsdf.AddBxDF(mat->disney->diffuse.get());
+			bsdf.AddBxDF(mat->disney->retro.get());
+			bsdf.AddBxDF(mat->disney->microfacet.get());
+			hasBSDF = true;
+		}
 
 		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
 		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);

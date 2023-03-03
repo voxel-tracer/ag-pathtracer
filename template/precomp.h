@@ -366,6 +366,7 @@ inline float fmaxf( float a, float b ) { return a > b ? a : b; }
 inline float rsqrtf( float x ) { return 1.0f / sqrtf( x ); }
 inline float sqrf( float x ) { return x * x; }
 inline int sqr( int x ) { return x * x; }
+inline float sqr(float x) { return x * x; }
 
 inline float2 make_float2( const float a, float b ) { float2 f2; f2.x = a, f2.y = b; return f2; }
 inline float2 make_float2( const float s ) { return make_float2( s, s ); }
@@ -671,6 +672,8 @@ inline float lerp( float a, float b, float t ) { return a + t * (b - a); }
 inline float2 lerp( const float2& a, const float2& b, float t ) { return a + t * (b - a); }
 inline float3 lerp( const float3& a, const float3& b, float t ) { return a + t * (b - a); }
 inline float4 lerp( const float4& a, const float4& b, float t ) { return a + t * (b - a); }
+
+inline float3 Lerp(float t, const float3& s1, const float3& s2) { return (1 - t) * s1 + t * s2; }
 
 inline float clamp( float f, float a, float b ) { return fmaxf( a, fminf( f, b ) ); }
 inline int clamp( int f, int a, int b ) { return max( a, min( f, b ) ); }

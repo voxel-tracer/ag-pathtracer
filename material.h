@@ -38,6 +38,50 @@ private:
 	shared_ptr<Texture> color2;
 };
 
+// Only support diffuse reflection for now
+struct DisneyMaterial {
+	float metallic = 0.f;
+	float eta = 1.5f;
+
+	shared_ptr<DisneyDiffuse> diffuse;
+	shared_ptr<DisneyRetro> retro;
+	shared_ptr<MicrofacetReflection> microfacet;
+
+	DisneyMaterial(const float3& color, float roughness) {
+		float3 c = color;
+		float metallicWeight = metallic;
+		float e = eta;
+		float strans = 0.f;
+		float diffuseWeight = (1 - metallicWeight) * (1 - strans);
+		float dt = 0.f;
+		float rough = roughness;
+
+		if (diffuseWeight > 0) {
+			float3 sd(0.f);
+			if (IsBlack(sd)) {
+				// No subsurface scattering; use regular (Fresnel modified) diffuse
+				diffuse = make_shared<DisneyDiffuse>(diffuseWeight * c);
+			}
+
+			// Retro-reflection
+			retro = make_shared<DisneyRetro>(diffuseWeight * c, rough);
+
+			// Create the microfacet distribution for metallic and/or specular transmission
+			float aspect = 1.f;
+			float ax = std::max(.001f, sqr(rough) / aspect);
+			float ay = std::max(.001f, sqr(rough) * aspect);
+			MicrofacetDistribution* distrib = new DisneyMicrofacetDistribution(ax, ay);
+
+			// Specular is Trowbridge-Reitz with a modified Fresnel function.
+			float specTint = 0.f;
+			float3 Cspec0 = SchlickR0FromEta(e);
+			Fresnel* fresnel = new DisneyFresnel(Cspec0, metallicWeight, e);
+			microfacet = make_shared<MicrofacetReflection>(float3(1.), distrib, fresnel);
+		}
+
+	}
+};
+
 class Material {
 public:
 	float ref_idx = 1.f;				// reflection index
@@ -45,6 +89,7 @@ public:
 	shared_ptr<Texture> specular;
 	shared_ptr<Texture> transmission;
 	shared_ptr<MicrofacetReflection> microfacet;
+	shared_ptr<DisneyMaterial> disney;
 	float3 emission = float3(0.f);
 
 	static shared_ptr<Material> make_lambertian(shared_ptr<Texture> diffuse) {
@@ -81,7 +126,12 @@ public:
 		MicrofacetDistribution* distribution = new TrowbridgeReitzDistribution(uRough, vRough);
 		Fresnel* fresnel = new FresnelConductor(float3(1.f), eta, k);
 		mat->microfacet = make_shared<MicrofacetReflection>(float3(1.f), distribution, fresnel);
-		mat->emission = float3(0.f);
+		return mat;
+	}
+
+	static shared_ptr<Material> make_disney(const float3& color, float roughness) {
+		auto mat = make_shared<Material>();
+		mat->disney = make_shared<DisneyMaterial>(color, roughness);
 		return mat;
 	}
 };
