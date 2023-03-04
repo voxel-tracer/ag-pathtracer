@@ -81,16 +81,22 @@ shared_ptr<Scene> BlenderTestScene() {
 
 // Keep this as it matches PBRT's simple.pbrt
 shared_ptr<Scene> SimpleTestScene() {
+	auto light_grey = make_shared<SolidColor>(.8f);
+	auto dark_grey = make_shared<SolidColor>(.1f);
+	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
+	auto floor = Material::make_lambertian(checker);
+
 	auto disneyDielectric = Material::make_disney(float3(.8f, .2f, .2f), .2f, 0.f);
 
 	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(make_shared<Sphere>(float3(0.f), 2.f, disneyDielectric));
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
+	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
 
 	// add an emitting sphere
-	auto lightE = float3(1.f, .914, .717) * 100;
+	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
 	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
-	//primitives.push_back(light);
+	primitives.push_back(light);
 
 	CameraDesc camera;
 	camera.lookfrom = float3(3.f, -1.5f, 4.f);
@@ -114,7 +120,7 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	scene = BlenderTestScene();
+	scene = SimpleTestScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);
@@ -154,6 +160,10 @@ void MyApp::Tick( float deltaTime )
 				float2 uv = accumulator->PixelToFilm(p);
 				Ray ray = camera->GetRay(uv.x, uv.y);
 				float3 clr = (uv.x < 0.5f) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
+				if (HasNans(clr) || std::isinf(Luminance(clr))) {
+					//std::cerr << "outlier\n";
+					clr = float3(0.f);
+				}
 				accumulator->AddSample(x, y, clr);
 			}
 		}
