@@ -94,6 +94,34 @@ inline float3 CosineWeightedRandomInHemisphere(const float3& N) {
 	return TangentToWorld(N, R);
 }
 
+inline float2 ConcentricSampleDisk(const float2& u) {
+	// Map uniform random numbers to [-1,1]^2
+	float2 uOffset = 2.f * u - float2(1, 1);
+
+	// Handle degeneracy at the origin
+	if (uOffset.x == 0 && uOffset.y == 0) return float2(0, 0);
+
+	// Apply concentric mapping to point
+	float theta, r;
+	if (std::abs(uOffset.x) > std::abs(uOffset.y)) {
+		r = uOffset.x;
+		theta = (PI / 4) * (uOffset.y / uOffset.x);
+	}
+	else {
+		r = uOffset.y;
+		theta = (PI / 2) - (PI / 4) * (uOffset.x / uOffset.y);
+	}
+	return r * float2(std::cos(theta), std::sin(theta));
+}
+
+// Cosine sampling of hemisphere in shading space (normal is (0, 0, 1))
+inline float3 CosineSampleHemisphere(const float2& u) {
+	float2 d = ConcentricSampleDisk(u);
+	float z = std::sqrt(std::max(0.f, 1 - d.x * d.x - d.y * d.y));
+	return float3(d.x, d.y, z);
+}
+
+
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):

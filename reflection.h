@@ -7,7 +7,8 @@ public:
     virtual float3 f(const float3& wo, const float3& wi) const = 0;
     virtual float3 Sample_f(const float3& wo, float3* wi, const float2& u, float* pdf) const {
         // Cosine-sample the hemisphere, flipping the direction if necessary
-        *wi = CosineWeightedRandomInHemisphere(float3(0, 0, 1));
+        //*wi = CosineWeightedRandomInHemisphere(float3(0, 0, 1));
+        *wi = CosineSampleHemisphere(u);
         if (wo.z < 0) wi->z *= -1;
         *pdf = Pdf(wo, *wi);
         return f(wo, *wi);
