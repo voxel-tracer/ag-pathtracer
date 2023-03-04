@@ -43,31 +43,58 @@ shared_ptr<Scene> BunnyScene() {
 	return scene;
 }
 
-shared_ptr<Scene> MicrofacetTestScene() {
-	auto light_grey = make_shared<SolidColor>(.8f);
-	auto dark_grey = make_shared<SolidColor>(.1f);
-	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
+shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const float3 color, float roughness) {
+	shared_ptr<Material> mat = Material::make_disney(color, roughness, 0.f);
+	return make_shared<Sphere>(center, radius, mat);
+}
 
-	auto floor = Material::make_lambertian(checker);
-	auto copper = Material::make_metal(0.0001f, float3(0.19999069, 0.92208463, 1.09987593), float3(3.90463543, 2.44763327, 2.13765264));
-	auto silver = Material::make_metal(0.01f, float3(0.154935181, 0.116475478, 0.138087392), float3(4.81810093, 3.11561656, 2.1424017));
-	auto disneyMetallic = Material::make_disney(float3(.8f, .2f, .2f), .5f, 1.f);
-	auto disneyDielectric = Material::make_disney(float3(.8f, .2f, .2f), .5f, 0.f);
+shared_ptr<Scene> BlenderTestScene() {
+	auto light_grey = make_shared<SolidColor>(.8f);
+	auto floor = Material::make_lambertian(light_grey);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(-1.1, 0, 0), 1.f, disneyMetallic));
-	primitives.push_back(make_shared<Sphere>(float3(1.1, 0, 0), 1.f, disneyDielectric));
+	primitives.push_back(makeSphere(float3(-1.1, .25, -1.1), .75f, float3(.8f, .589f, .442f), .5f)); // floor
+	primitives.push_back(makeSphere(float3(-1.1, .25, 1.1), .75f, float3(.704f, .174f, .125f), .63f)); // carrots
+	primitives.push_back(makeSphere(float3(1.1, .25, 1.1), .75f, float3(.948f, .607f, .160f), .262f)); // corn
+	primitives.push_back(makeSphere(float3(1.1, .25, -1.1), .75f, float3(1, .454f, .368f), .5f)); // ears
 
 	// add an emitting sphere
-	auto lightE = float3(523, 342, 342);
-	auto lightMat = Material::make_emitter(523, 342, 342);
+	auto lightE = float3(1., .914, .717) * 100;
+	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
 	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
-	primitives.push_back(light);
+	//primitives.push_back(light);
 
 	CameraDesc camera;
 	camera.lookfrom = float3(3.f, -1.5f, 4.f);
-	camera.lookat = float3(.5f, 0, .5f);
+	camera.lookat = float3(0, 0, 0);
+	camera.vup = float3(0, 1, 0);
+	camera.aspect_ratio = 1;
+	//camera.aperture = .1f;
+
+	auto scene = make_shared<Scene>(primitives, camera);
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
+
+	return scene;
+}
+
+// Keep this as it matches PBRT's simple.pbrt
+shared_ptr<Scene> SimpleTestScene() {
+	auto disneyDielectric = Material::make_disney(float3(.8f, .2f, .2f), .2f, 0.f);
+
+	vector<shared_ptr<Intersectable>> primitives;
+	primitives.push_back(make_shared<Sphere>(float3(0.f), 2.f, disneyDielectric));
+
+	// add an emitting sphere
+	auto lightE = float3(1.f, .914, .717) * 100;
+	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
+	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
+	//primitives.push_back(light);
+
+	CameraDesc camera;
+	camera.lookfrom = float3(3.f, -1.5f, 4.f);
+	camera.lookat = float3(0, 0, 0);
 	camera.vup = float3(0, 1, 0);
 	camera.aspect_ratio = 1;
 	//camera.aperture = .1f;
@@ -87,8 +114,7 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	scene = MicrofacetTestScene();
-	//scene = BunnyScene();
+	scene = BlenderTestScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);
