@@ -122,7 +122,7 @@ public:
         float3 wi, wo = WorldToLocal(woWorld);
         if (wo.z == 0) return 0.;
         *pdf = 0;
-        float3 f = bxdf->Sample_f(wo, &wi, u, pdf);
+        float3 f = bxdf->Sample_f(wo, &wi, uRemapped, pdf);
         if (*pdf == 0) return 0;
         *wiWorld = LocalToWorld(wi);
 
