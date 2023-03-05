@@ -121,6 +121,14 @@ inline float3 CosineSampleHemisphere(const float2& u) {
 	return float3(d.x, d.y, z);
 }
 
+inline void CoordinateSystem(const float3& v1, float3* v2, float3* v3) {
+	if (std::abs(v1.x) > std::abs(v1.y))
+		*v2 = float3(-v1.z, 0, v1.x) / std::sqrt(v1.x * v1.x + v1.z * v1.z);
+	else
+		*v2 = float3(0, v1.z, -v1.y) / std::sqrt(v1.y * v1.y + v1.z * v1.z);
+	*v3 = cross(v1, *v2);
+}
+
 
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
