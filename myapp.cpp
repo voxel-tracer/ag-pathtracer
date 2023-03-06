@@ -15,14 +15,14 @@ shared_ptr<Scene> BunnyScene() {
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
 	//auto mat = Material::make_lambertian(SolidColor::make(float3(.7f, .1f, .1f)));
-	auto mat = Material::make_disney(float3(.8f, .2f, .2f), .2f, 1.f);
+	auto mat = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
 	auto floor = Material::make_lambertian(checker);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", mat, transform, true);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", mat, transform, false);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
 	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f, 30.f };
@@ -182,7 +182,7 @@ void MyApp::Tick( float deltaTime )
 		Hit hit;
 		if (scene->NearestIntersection(ray, hit)) {
 			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.I));
-			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.N));
+			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.ShadingN));
 			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdu));
 			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdv));
 			screen->Line(p.x, p.y, n.x, n.y, 0x0000FF);

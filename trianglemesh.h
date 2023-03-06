@@ -111,27 +111,40 @@ protected:
 
             CoordinateSystem(normalize(ng), &dpdu, &dpdv);
         }
+        hit.dpdu = dpdu;
+        hit.dpdv = dpdv;
 
         // compute normal
-        if (normals.empty()) {
-            // mesh doesn't have vertex normals, compute geometric normal
-            //hit.N = normalize(cross(v1 - v0, v2 - v0));
-            hit.N = normalize(cross(dp02, dp12));
-        }
-        else {
+        hit.ShadingN = hit.N = normalize(cross(dp02, dp12));
+        if (!normals.empty()) {
+            // Initialize Triangle shading geometry
+
+            // Compute shading normal _ns_ for triangle
             auto n0 = normals[indices[tridx + 0].normal_index];
             auto n1 = normals[indices[tridx + 1].normal_index];
             auto n2 = normals[indices[tridx + 2].normal_index];
-            hit.N = normalize(n0 * b0 + n1 * b1 + n2 * b2);
+            float3 ns = n0 * b0 + n1 * b1 + n2 * b2;
+            if (sqrLength(ns) > 0.f)
+                ns = normalize(ns);
+            else
+                ns = hit.N;
+
+            // Compute shading tangent _ss_ for triangle
+            float3 ss = normalize(hit.dpdu);
+
+            // Compute shading bitangent _ts_ for triangle and adjust _ss_
+            float3 ts = cross(ss, ns);
+            if (sqrLength(ts) > 0.f) {
+                ts = normalize(ts);
+                ss = cross(ts, ns);
+            }
+            else
+                CoordinateSystem(ns, &ss, &ts);
+            hit.SetShadingGeometry(ss, ts, true);
         }
-
-
         
         hit.I = ray.at(t);
-        hit.dpdu = dpdu;
-        hit.dpdv = dpdv;
         ray.t = t;
-        
 
         return true;
     }

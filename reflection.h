@@ -64,10 +64,10 @@ private:
 class BSDF {
 public:
     BSDF() {}
-    BSDF(const float3& N, const float3& dpdu, float eta = 1.f)
+    BSDF(const float3& N, const float3& shadingN, const float3& dpdu, float eta = 1.f)
         : eta(eta),
         ng(N),
-        ns(N),
+        ns(shadingN),
         ss(normalize(dpdu)),
         ts(cross(ns, ss)) {}
 

@@ -9,7 +9,8 @@ class BSDF;
 class Hit {
 public:
 	float3 I; // intersection point
-	float3 N; // normal at intersection
+	float3 N; // geometric normal at intersection
+	float3 ShadingN; // shading normal at intersection
 
 	const Material* mat;
 	float u;
@@ -25,14 +26,25 @@ public:
 	BSDF bsdf;
 	bool hasBSDF = false;
 
+	void SetShadingGeometry(const float3& dpdus, const float3& dpdvs, bool orientationIsAuthorative) {
+		// Compute shading normal for surface interaction
+		ShadingN = normalize(cross(dpdus, dpdvs));
+		if (orientationIsAuthorative)
+			N = Faceforward(N, ShadingN);
+		else
+			ShadingN = Faceforward(ShadingN, N);
+		dpdu = dpdus;
+		dpdv = dpdvs;
+	}
+
 	void EvalMaterial() {
 		if (mat->microfacet) {
-			bsdf = BSDF(N, dpdu);
+			bsdf = BSDF(N, ShadingN, dpdu);
 			bsdf.AddBxDF(mat->microfacet.get());
 			hasBSDF = true;
 		}
 		else if (mat->disney) {
-			bsdf = BSDF(N, dpdu);
+			bsdf = BSDF(N, ShadingN, dpdu);
 			if (mat->disney->diffuse)
 				bsdf.AddBxDF(mat->disney->diffuse.get());
 			if (mat->disney->retro)
@@ -83,7 +95,7 @@ public:
 			hit.mat = mat.get();
 			ray.t = t;
 			hit.I = P;
-			hit.N = make_float3(0, -1, 0);
+			hit.N = hit.ShadingN = make_float3(0, -1, 0);
 			return true;
 		}
 		return false;
@@ -135,7 +147,7 @@ public:
 		ray.t = root;
 		hit.mat = mat.get();
 		hit.I = ray.at(root);
-		hit.N = normalize(hit.I - Center);
+		hit.ShadingN = hit.N = normalize(hit.I - Center);
 
 		// compute point partial derivatives
 		float3 pHit = hit.I - Center; // intersection point in Sphere's local coordinates system
