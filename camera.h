@@ -63,6 +63,14 @@ public:
 		return Ray(origin + offset, pixel - origin - offset);
 	}
 
+	float2 WorldToScreen(const float3 p) const {
+		float3 PO = p - origin;
+		float X = dot(PO, u);
+		float Y = dot(PO, v);
+		float Z = dot(-PO, w);
+		return float2(X / (viewport_width * Z) + .5f, Y / (viewport_height * Z) + .5f);
+	}
+
 protected:
 	void updateCoords(float3 lookfrom) {
 		focus_dist = length(lookat - lookfrom);

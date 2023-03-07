@@ -366,6 +366,7 @@ inline float fmaxf( float a, float b ) { return a > b ? a : b; }
 inline float rsqrtf( float x ) { return 1.0f / sqrtf( x ); }
 inline float sqrf( float x ) { return x * x; }
 inline int sqr( int x ) { return x * x; }
+inline float sqr(float x) { return x * x; }
 
 inline float2 make_float2( const float a, float b ) { float2 f2; f2.x = a, f2.y = b; return f2; }
 inline float2 make_float2( const float s ) { return make_float2( s, s ); }
@@ -672,6 +673,8 @@ inline float2 lerp( const float2& a, const float2& b, float t ) { return a + t *
 inline float3 lerp( const float3& a, const float3& b, float t ) { return a + t * (b - a); }
 inline float4 lerp( const float4& a, const float4& b, float t ) { return a + t * (b - a); }
 
+inline float3 Lerp(float t, const float3& s1, const float3& s2) { return (1 - t) * s1 + t * s2; }
+
 inline float clamp( float f, float a, float b ) { return fmaxf( a, fminf( f, b ) ); }
 inline int clamp( int f, int a, int b ) { return max( a, min( f, b ) ); }
 inline uint clamp( uint f, uint a, uint b ) { return max( a, min( f, b ) ); }
@@ -703,6 +706,15 @@ inline int dot( const int4& a, const int4& b ) { return a.x * b.x + a.y * b.y + 
 inline uint dot( const uint2& a, const uint2& b ) { return a.x * b.x + a.y * b.y; }
 inline uint dot( const uint3& a, const uint3& b ) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 inline uint dot( const uint4& a, const uint4& b ) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
+
+inline float absdot(const float3& a, const float3& b) { return abs(dot(a, b)); }
+inline float3 sqrt(const float3& v) { return float3(sqrt(v.x), sqrt(v.y), sqrt(v.z)); }
+inline float3 Faceforward(const float3& v, const float3& v2) { return (dot(v, v2) < 0.f) ? -v : v; }
+inline bool SameHemisphere(const float3& w, const float3& wp) { return w.z * wp.z > 0; }
+inline bool IsBlack(const float3& v) { return v.x == 0 && v.y == 0 && v.z == 0; }
+inline bool HasNans(const float3& v) { return std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z); }
+
+inline float Luminance(const float3& v) { return 0.212671f * v.x + 0.715160f * v.y + 0.072169f * v.z; }
 
 inline float sqrLength( const float2& v ) { return dot( v, v ); }
 inline float sqrLength( const float3& v ) { return dot( v, v ); }
@@ -744,6 +756,7 @@ inline int3 abs( const int3& v ) { return make_int3( abs( v.x ), abs( v.y ), abs
 inline int4 abs( const int4& v ) { return make_int4( abs( v.x ), abs( v.y ), abs( v.z ), abs( v.w ) ); }
 
 inline float3 reflect( const float3& i, const float3& n ) { return i - 2.0f * n * dot( n, i ); }
+inline float3 Reflect(const float3& wo, const float3& n) { return -wo + 2.0f * dot(wo, n) * n; }
 
 inline float3 cross( const float3& a, const float3& b ) { return make_float3( a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x ); }
 

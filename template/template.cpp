@@ -1578,6 +1578,20 @@ void Surface::Plot( int x, int y, uint c )
 	pixels[x + y * width] = c;
 }
 
+void Surface::Box(int x1, int y1, int x2, int y2, uint color) {
+	const int left = max(0, x1);
+	const int right = min(width - 1, x2);
+	const int top = max(0, y1);
+	const int bottom = min(height - 1, y2);
+	if (right < 0 || bottom < 0 || left >= width || top >= height) return;
+
+	for (size_t y = top; y <= bottom; y++) {
+		for (size_t x = left; x <= right; x++) {
+			pixels[x + y * width] = color;
+		}
+	}
+}
+
 void Surface::Print( const char* s, int x1, int y1, uint c )
 {
 	if (!fontInitialized)

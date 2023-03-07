@@ -1,20 +1,59 @@
 #pragma once
 
+#include "material.h"
+#include "camera.h"
+#include "reflection.h"
+
+class BSDF;
+
 class Hit {
 public:
 	float3 I; // intersection point
-	float3 N; // normal at intersection
+	float3 N; // geometric normal at intersection
+	float3 ShadingN; // shading normal at intersection
 
 	const Material* mat;
 	float u;
 	float v;
 
+	float3 dpdu = float3(0.f);
+	float3 dpdv = float3(0.f);
+
 	float3 diffuse;
 	float3 specular;
 	float3 transmission;
 	float3 emission;
+	BSDF bsdf;
+	bool hasBSDF = false;
+
+	void SetShadingGeometry(const float3& dpdus, const float3& dpdvs, bool orientationIsAuthorative) {
+		// Compute shading normal for surface interaction
+		ShadingN = normalize(cross(dpdus, dpdvs));
+		if (orientationIsAuthorative)
+			N = Faceforward(N, ShadingN);
+		else
+			ShadingN = Faceforward(ShadingN, N);
+		dpdu = dpdus;
+		dpdv = dpdvs;
+	}
 
 	void EvalMaterial() {
+		if (mat->microfacet) {
+			bsdf = BSDF(N, ShadingN, dpdu);
+			bsdf.AddBxDF(mat->microfacet.get());
+			hasBSDF = true;
+		}
+		else if (mat->disney) {
+			bsdf = BSDF(N, ShadingN, dpdu);
+			if (mat->disney->diffuse)
+				bsdf.AddBxDF(mat->disney->diffuse.get());
+			if (mat->disney->retro)
+				bsdf.AddBxDF(mat->disney->retro.get());
+			if (mat->disney->microfacet)
+				bsdf.AddBxDF(mat->disney->microfacet.get());
+			hasBSDF = true;
+		}
+
 		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
 		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);
 		transmission = (mat->transmission) ? mat->transmission->value(u, v) : float3(0.f);
@@ -56,7 +95,7 @@ public:
 			hit.mat = mat.get();
 			ray.t = t;
 			hit.I = P;
-			hit.N = make_float3(0, -1, 0);
+			hit.N = hit.ShadingN = make_float3(0, -1, 0);
 			return true;
 		}
 		return false;
@@ -108,7 +147,21 @@ public:
 		ray.t = root;
 		hit.mat = mat.get();
 		hit.I = ray.at(root);
-		hit.N = normalize(hit.I - Center);
+		hit.ShadingN = hit.N = normalize(hit.I - Center);
+
+		// compute point partial derivatives
+		float3 pHit = hit.I - Center; // intersection point in Sphere's local coordinates system
+		if (pHit.x == 0 && pHit.y == 0) pHit.x = EPSILON * r;
+		float phi = atan2(pHit.y, pHit.x);
+		if (phi < 0) phi += TWOPI;
+		float theta = acos(clamp(pHit.z / r, -1.f, 1.f));
+		float zRadius = sqrt(pHit.x * pHit.x + pHit.y * pHit.y);
+		float invZRadius = 1 / zRadius;
+		float cosPhi = pHit.x * invZRadius;
+		float sinPhi = pHit.y * invZRadius;
+		hit.dpdu = float3(-TWOPI * pHit.y, TWOPI * pHit.x, 0);
+		hit.dpdv = PI * float3(pHit.z * cosPhi, pHit.z * sinPhi, -r * sin(theta));
+
 		return true;
 	}
 

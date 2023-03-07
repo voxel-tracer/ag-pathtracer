@@ -53,17 +53,18 @@ protected:
 
         // calculate distance from v0 to ray.origin
         auto tvec = ray.O - v0;
-        // calculate U parameter and test bounds
-        auto u = dot(tvec, pvec) * inv_det;
-        if (u < 0.0f || u > 1.0f)
+        // calculate b1 parameter and test bounds
+        auto b1 = dot(tvec, pvec) * inv_det;
+        if (b1 < 0.0f || b1 > 1.0f)
             return false;
 
         // prepare to test V parameter
         auto qvec = cross(tvec, e1);
-        // calculate V parameter and test bounds
-        auto v = dot(ray.D, qvec) * inv_det;
-        if (v < 0.0f || u + v > 1.0f)
+        // calculate b2 parameter and test bounds
+        auto b2 = dot(ray.D, qvec) * inv_det;
+        if (b2 < 0.0f || b1 + b2 > 1.0f)
             return false;
+        auto b0 = 1.f - b1 - b2;
 
         // calculate t, ray intersects triangle
         auto t = dot(e2, qvec) * inv_det;
@@ -73,29 +74,73 @@ protected:
         hit.mat = mat.get();
 
         // compute texture coordinates
-        if (texcoords.empty()) {
-            hit.u = u;
-            hit.v = v;
+        float2 uv[3];
+        if (!texcoords.empty()) {
+            uv[0] = texcoords[indices[tridx + 0].texcoord_index];
+            uv[1] = texcoords[indices[tridx + 1].texcoord_index];
+            uv[2] = texcoords[indices[tridx + 2].texcoord_index];
         }
         else {
-            auto tc0 = texcoords[indices[tridx + 0].texcoord_index];
-            auto tc1 = texcoords[indices[tridx + 1].texcoord_index];
-            auto tc2 = texcoords[indices[tridx + 2].texcoord_index];
-            auto tc = tc0 * (1 - u - v) + tc1 * u + tc2 * v;
-            hit.u = tc.x;
-            hit.v = tc.y;
+            uv[0] = float2(0, 0);
+            uv[1] = float2(1, 0);
+            uv[2] = float2(1, 1);
         }
+        auto tc = uv[0] * b0 + uv[1] * b1 + uv[2] * b2;
+        hit.u = tc.x;
+        hit.v = tc.y;
+
+        // Compute triangle partial derivatives
+        float3 dpdu, dpdv;
+        // Compute deltas for triangle partial derivatives
+        float2 duv02 = uv[0] - uv[2], duv12 = uv[1] - uv[2];
+        float3 dp02 = v0 - v2, dp12 = v1 - v2;
+        float determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+        bool degenerateUV = std::abs(determinant) < 1e-8;
+        if (!degenerateUV) {
+            float invdet = 1 / determinant;
+            dpdu = (duv12[1] * dp02 - duv02[1] * dp12) * invdet;
+            dpdv = (-duv12[0] * dp02 + duv02[0] * dp12) * invdet;
+        }
+        if (degenerateUV || sqrLength(cross(dpdu, dpdv)) == 0) {
+            // Handle zero determinant for triangle partial derivative matrix
+            float3 ng = cross(v2 - v0, v1 - v0);
+            if (sqrLength(ng) == 0)
+                // The triangle is actually degenerate; the intersection is
+                // bogus.
+                return false;
+
+            CoordinateSystem(normalize(ng), &dpdu, &dpdv);
+        }
+        hit.dpdu = dpdu;
+        hit.dpdv = dpdv;
 
         // compute normal
-        if (normals.empty()) {
-            // mesh doesn't have vertex normals, compute geometric normal
-            hit.N = normalize(cross(v1 - v0, v2 - v0));
-        }
-        else {
+        hit.ShadingN = hit.N = normalize(cross(dp02, dp12));
+        if (!normals.empty()) {
+            // Initialize Triangle shading geometry
+
+            // Compute shading normal _ns_ for triangle
             auto n0 = normals[indices[tridx + 0].normal_index];
             auto n1 = normals[indices[tridx + 1].normal_index];
             auto n2 = normals[indices[tridx + 2].normal_index];
-            hit.N = normalize(n0 * (1 - u - v) + n1 * u + n2 * v);
+            float3 ns = n0 * b0 + n1 * b1 + n2 * b2;
+            if (sqrLength(ns) > 0.f)
+                ns = normalize(ns);
+            else
+                ns = hit.N;
+
+            // Compute shading tangent _ss_ for triangle
+            float3 ss = normalize(hit.dpdu);
+
+            // Compute shading bitangent _ts_ for triangle and adjust _ss_
+            float3 ts = cross(ss, ns);
+            if (sqrLength(ts) > 0.f) {
+                ts = normalize(ts);
+                ss = cross(ts, ns);
+            }
+            else
+                CoordinateSystem(ns, &ss, &ts);
+            hit.SetShadingGeometry(ss, ts, true);
         }
         
         hit.I = ray.at(t);

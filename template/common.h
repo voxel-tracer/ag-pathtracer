@@ -2,8 +2,8 @@
 // global settings and defines.
 
 // default screen resolution
-#define SCRWIDTH	1280
-#define SCRHEIGHT	720
+#define SCRWIDTH	400
+#define SCRHEIGHT	400
 // #define FULLSCREEN
 
 // constants
@@ -14,6 +14,8 @@
 #define SQRT_PI_INV	0.56418958355f
 #define LARGE_FLOAT	1e34f
 #define EPSILON		0.0001f
+
+static const float FloatOneMinusEpsilon = 0x1.fffffep-1;
 
 // Utility functions
 inline float radians(float degrees) {
@@ -91,6 +93,42 @@ inline float3 CosineWeightedRandomInHemisphere(const float3& N) {
 	float3 R(x, y, sqrt(1 - r0));
 	return TangentToWorld(N, R);
 }
+
+inline float2 ConcentricSampleDisk(const float2& u) {
+	// Map uniform random numbers to [-1,1]^2
+	float2 uOffset = 2.f * u - float2(1, 1);
+
+	// Handle degeneracy at the origin
+	if (uOffset.x == 0 && uOffset.y == 0) return float2(0, 0);
+
+	// Apply concentric mapping to point
+	float theta, r;
+	if (std::abs(uOffset.x) > std::abs(uOffset.y)) {
+		r = uOffset.x;
+		theta = (PI / 4) * (uOffset.y / uOffset.x);
+	}
+	else {
+		r = uOffset.y;
+		theta = (PI / 2) - (PI / 4) * (uOffset.x / uOffset.y);
+	}
+	return r * float2(std::cos(theta), std::sin(theta));
+}
+
+// Cosine sampling of hemisphere in shading space (normal is (0, 0, 1))
+inline float3 CosineSampleHemisphere(const float2& u) {
+	float2 d = ConcentricSampleDisk(u);
+	float z = std::sqrt(std::max(0.f, 1 - d.x * d.x - d.y * d.y));
+	return float3(d.x, d.y, z);
+}
+
+inline void CoordinateSystem(const float3& v1, float3* v2, float3* v3) {
+	if (std::abs(v1.x) > std::abs(v1.y))
+		*v2 = float3(-v1.z, 0, v1.x) / std::sqrt(v1.x * v1.x + v1.z * v1.z);
+	else
+		*v2 = float3(0, v1.z, -v1.y) / std::sqrt(v1.y * v1.y + v1.z * v1.z);
+	*v3 = cross(v1, *v2);
+}
+
 
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
