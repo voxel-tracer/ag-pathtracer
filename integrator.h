@@ -165,7 +165,7 @@ protected:
 		float dist = length(toL);
 		toL /= dist;
 		float cos_o = dot(-toL, lightN);
-		float cos_i = dot(toL, hit.N);
+		float cos_i = absdot(toL, hit.ShadingN);
 		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
 		// light is not behind surface point, trace shadow ray
 		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
@@ -299,6 +299,6 @@ protected:
 		float2 u(RandomFloat(), RandomFloat());
 		float3 BRDF = hit.bsdf.Sample_f(wo, R, u, &pdf);
 		if (pdf == 0) return float3(0.f);
-		return BRDF * absdot(hit.N, *R) / pdf;
+		return BRDF * absdot(hit.ShadingN, *R) / pdf;
 	}
 };
