@@ -95,7 +95,7 @@ public:
 			hit.mat = mat.get();
 			ray.t = t;
 			hit.I = P;
-			hit.N = hit.ShadingN = make_float3(0, -1, 0);
+			hit.N = hit.ShadingN = make_float3(0, 1, 0);
 			return true;
 		}
 		return false;

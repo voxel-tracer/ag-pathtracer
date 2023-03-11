@@ -143,7 +143,7 @@ public:
 
 	void update(float2 angle) {
 		xAngle += angle.x;
-		xAngle = clamp(xAngle, 0.0f, PI / 2 - 0.01f);
+		xAngle = clamp(xAngle, -(PI / 2 - EPSILON), 0.f);
 
 		yAngle += angle.y;
 

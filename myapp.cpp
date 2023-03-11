@@ -14,24 +14,28 @@ shared_ptr<Scene> BunnyScene() {
 	auto dark_grey = make_shared<SolidColor>(.1f);
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 
-	//auto mat = Material::make_lambertian(SolidColor::make(float3(.7f, .1f, .1f)));
 	auto mat = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
 	auto floor = Material::make_lambertian(checker);
 
 	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	mat4 transform = mat4::Translate(0, 1, 0) * mat4::RotateY(radians(180)) * mat4::RotateX(radians(180));
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
+	mat4 transform = mat4::Translate(0, -1, 0) * mat4::RotateY(radians(60));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", mat, transform, false);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", mat, transform);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
-	CameraDesc camera{ { 3.f, -1.5f, 4.f }, { .5f, 0, .5f }, { 0.f, 1.f, 0.f }, 1.f, 30.f };
+	CameraDesc camera;
+	camera.lookfrom = float3(3, 1.5f, 4);
+	camera.lookat = float3(.5f, 0, .5f);
+	camera.vup = float3(0, 1, 0);
+	camera.aspect_ratio = 1;
+	camera.vfov = 30;
 	//camera.aperture = .1f;
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
-	auto lightMat = Material::make_emitter(523, 342, 342);
-	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
+	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
+	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
 	primitives.push_back(light);
 
 	auto scene = make_shared<Scene>(primitives, camera);
@@ -46,37 +50,6 @@ shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const f
 	return make_shared<Sphere>(center, radius, mat);
 }
 
-shared_ptr<Scene> BlenderTestScene() {
-	auto light_grey = make_shared<SolidColor>(.8f);
-	auto floor = Material::make_lambertian(light_grey);
-
-	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
-	primitives.push_back(makeSphere(float3(-1.1, .25, -1.1), .75f, float3(.8f, .589f, .442f), .5f)); // floor
-	primitives.push_back(makeSphere(float3(-1.1, .25, 1.1), .75f, float3(.704f, .174f, .125f), .63f)); // carrots
-	primitives.push_back(makeSphere(float3(1.1, .25, 1.1), .75f, float3(.948f, .607f, .160f), .262f)); // corn
-	primitives.push_back(makeSphere(float3(1.1, .25, -1.1), .75f, float3(1, .454f, .368f), .5f)); // ears
-
-	// add an emitting sphere
-	auto lightE = float3(1., .914, .717) * 100;
-	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
-	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
-	//primitives.push_back(light);
-
-	CameraDesc camera;
-	camera.lookfrom = float3(3.f, -1.5f, 4.f);
-	camera.lookat = float3(0, 0, 0);
-	camera.vup = float3(0, 1, 0);
-	camera.aspect_ratio = 1;
-	//camera.aperture = .1f;
-
-	auto scene = make_shared<Scene>(primitives, camera);
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
-
-	return scene;
-}
-
 // Keep this as it matches PBRT's simple.pbrt
 shared_ptr<Scene> SimpleTestScene() {
 	auto light_grey = make_shared<SolidColor>(.8f);
@@ -84,20 +57,20 @@ shared_ptr<Scene> SimpleTestScene() {
 	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
 	auto floor = Material::make_lambertian(checker);
 
-	auto disneyDielectric = Material::make_disney(float3(.8f, .2f, .2f), .2f, 0.f);
+	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
 
 	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, 1, 0), make_float2(20), floor));
+	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
 	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
-	auto light = make_shared<Sphere>(float3(-30, -100, 40), 5.f, lightMat);
+	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
 	primitives.push_back(light);
 
 	CameraDesc camera;
-	camera.lookfrom = float3(3.f, -1.5f, 4.f);
+	camera.lookfrom = float3(3.f, 1.5f, 4.f);
 	camera.lookat = float3(0, 0, 0);
 	camera.vup = float3(0, 1, 0);
 	camera.aspect_ratio = 1;
@@ -118,7 +91,7 @@ TheApp* CreateApp() { return new MyApp(); }
 void MyApp::Init()
 {
 	// anything that happens only once at application start goes here
-	scene = BunnyScene();
+	scene = SimpleTestScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	//integrator = make_shared<WhittedIntegrator>(10);
@@ -139,7 +112,7 @@ void MyApp::Tick( float deltaTime )
 	// rotate camera if mouse moved since last tick
 	if (!paused && (mouseDiff.x != 0 || mouseDiff.y != 0)) {
 		float rotation_speed = 0.005f;
-		camera->update(float2(mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
+		camera->update(float2(-mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
 		accumulator->Clear();
 	}
 	mouseDiff = int2(0); // reset mouse diff

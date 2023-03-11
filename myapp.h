@@ -15,7 +15,7 @@ public:
 	~Accumulator() { FREE64(pixels); }
 
 	inline void AddSample(int x, int y, const float3& clr) {
-		pixels[y * width + x] += clr;
+		pixels[(height - 1 - y) * width + x] += clr;
 	}
 
 	inline void IncrementSampleCount() {
