@@ -94,9 +94,8 @@ void MyApp::Init()
 	scene = SimpleTestScene();
 	camera = make_shared<RotatingCamera>(scene->camera);
 
-	//integrator = make_shared<WhittedIntegrator>(10);
-	integratorR = make_shared<PathTracer2>();
-	integratorL = integratorR; // make_shared<PathTracer>();
+	integratorR = make_shared<PathTracer>();
+	integratorL = integratorR;
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	int2 scrPos((SCRWIDTH - MinScrSize) / 2, (SCRHEIGHT - MinScrSize) / 2);

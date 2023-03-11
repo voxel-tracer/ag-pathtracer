@@ -103,95 +103,6 @@ public:
 	PathTracer(int maxDepth = 5) : MaxDepth(maxDepth) {}
 
 	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
-		float3 L(0.f);
-
-		Hit hit;
-		if (!scene.NearestIntersection(ray, hit)) {
-			// Ray left the scene, handle infinite lights
-			for (const auto& light : scene.lights) L += light->Le(ray);
-			return L;
-		}
-
-		hit.EvalMaterial();
-
-		// terminate if we hit a light source
-		if (!isblack(hit.emission)) 
-			return isSpecular ? hit.emission : float3(0.f);
-
-		L += DirectLight(scene, -ray.D, hit);
-		// terminate if we exceed MaxDepth
-		if (depth + 1 > MaxDepth) return L;
-
-		if (depth + 1 < MaxDepth) {
-			// for now assume a material can only be diffuse or specular or refractive
-			if (!isblack(hit.diffuse))
-				L += IndirectLight(hit, scene, depth);
-			else if (!isblack(hit.transmission))
-				L += SpecularTransmission(ray, hit, scene, depth);
-			else if (!isblack(hit.specular))
-				L += SpecularReflection(ray, hit, scene, depth);
-		}
-
-		return L;
-	}
-
-protected:
-	virtual float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
-		auto R = CosineWeightedRandomInHemisphere(N);
-		*pdf = dot(N, R) * INVPI;
-		return R;
-	}
-
-	float3 IndirectLight(const Hit& hit, const Scene& scene, int depth) const {
-		float pdf;
-		auto R = SampleDirectionInHemisphere(hit.N, &pdf);
-		Ray newRay(hit.I + EPSILON * R, R);
-		// update throughput
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
-		return BRDF * Ei / pdf;
-	}
-
-	float3 DirectLight(const Scene& scene, const float3& wo, const Hit& hit) const {
-		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
-
-		// pick one random light
-		int lights = (int)(scene.lights.size());
-		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
-		const auto& light = scene.lights[lightIdx];
-		float3 S, lightN;
-		if (!light->Sample(hit.I, &S, &lightN)) return false; // light doesn't support sampling
-		float3 toL = S - hit.I;
-		float dist = length(toL);
-		toL /= dist;
-		float cos_o = dot(-toL, lightN);
-		float cos_i = absdot(toL, hit.ShadingN);
-		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
-		// light is not behind surface point, trace shadow ray
-		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
-		Hit tmpHit;
-		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
-		// light is visible, calculate transport
-		float3 BRDF;
-		if (hit.hasBSDF) {
-			BRDF = hit.bsdf.f(wo, toL);
-		}
-		else {
-			BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		}
-		float solidAngle = (cos_o * light->Area()) / (dist * dist);
-		return BRDF * (float)lights * light->L * solidAngle * cos_i;
-	}
-
-	int MaxDepth;
-};
-
-class PathTracer2 : public PathTracer {
-public:
-	PathTracer2(int maxDepth = 5) : PathTracer(maxDepth) {}
-
-
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
 		float3 T(1.f); // current ray throughput
 		float3 E(0.f);
 
@@ -214,7 +125,7 @@ public:
 
 			float3 wo = -curRay.D;
 
-			E += T * DirectLight(scene, wo, hit);
+			E += T * EstimateDirect(scene, wo, hit);
 
 			// terminate if we exceed MaxDepth
 			if (depth + 1 > MaxDepth) break;
@@ -224,7 +135,8 @@ public:
 			if (hit.hasBSDF) {
 				T *= SampleMicrofacet(hit, scene, wo, &R);
 				isSpecular = false;
-			} else if (!isblack(hit.diffuse)) {
+			}
+			else if (!isblack(hit.diffuse)) {
 				T *= SampleIndirectLight(hit, scene, &R);
 				isSpecular = false;
 			}
@@ -267,7 +179,7 @@ public:
 						// total internal reflection
 						break;
 					}
-					
+
 					T *= transmission;
 					isSpecular = true;
 				}
@@ -286,13 +198,6 @@ public:
 	}
 
 protected:
-	float3 SampleIndirectLight(const Hit& hit, const Scene& scene, float3* R) const {
-		float pdf;
-		*R = SampleDirectionInHemisphere(hit.N, &pdf);
-		// update throughput
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		return BRDF * dot(hit.N, *R) / pdf;
-	}
 
 	float3 SampleMicrofacet(const Hit& hit, const Scene& scene, const float3& wo, float3* R) const {
 		float pdf;
@@ -301,4 +206,61 @@ protected:
 		if (pdf == 0) return float3(0.f);
 		return BRDF * absdot(hit.ShadingN, *R) / pdf;
 	}
+
+	float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
+		auto R = CosineWeightedRandomInHemisphere(N);
+		*pdf = dot(N, R) * INVPI;
+		return R;
+	}
+
+	float3 SampleIndirectLight(const Hit& hit, const Scene& scene, float3* R) const {
+		float pdf;
+		*R = SampleDirectionInHemisphere(hit.N, &pdf);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		return BRDF * dot(hit.N, *R) / pdf;
+	}
+
+	float3 IndirectLight(const Hit& hit, const Scene& scene, int depth) const {
+		float pdf;
+		auto R = SampleDirectionInHemisphere(hit.N, &pdf);
+		Ray newRay(hit.I + EPSILON * R, R);
+		// update throughput
+		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
+		return BRDF * Ei / pdf;
+	}
+
+	float3 EstimateDirect(const Scene& scene, const float3& wo, const Hit& hit) const {
+		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
+
+		// pick one random light
+		int lights = (int)(scene.lights.size());
+		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
+		const auto& light = scene.lights[lightIdx];
+		float3 S, lightN;
+		if (!light->Sample(hit.I, &S, &lightN)) return false; // light doesn't support sampling
+		float3 toL = S - hit.I;
+		float dist = length(toL);
+		toL /= dist;
+		float cos_o = dot(-toL, lightN);
+		float cos_i = absdot(toL, hit.ShadingN);
+		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
+		// light is not behind surface point, trace shadow ray
+		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
+		Hit tmpHit;
+		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
+		// light is visible, calculate transport
+		float3 BRDF;
+		if (hit.hasBSDF) {
+			BRDF = hit.bsdf.f(wo, toL);
+		}
+		else {
+			BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
+		}
+		float solidAngle = (cos_o * light->Area()) / (dist * dist);
+		return BRDF * (float)lights * light->L * solidAngle * cos_i;
+	}
+
+	int MaxDepth;
 };
