@@ -6,45 +6,37 @@
 
 class BSDF;
 
-class Hit {
+class SurfaceInteraction {
 public:
-	float3 I; // intersection point
-	float3 N; // geometric normal at intersection
-	float3 ShadingN; // shading normal at intersection
-
-	const Material* mat;
-	float u;
-	float v;
-
-	float3 dpdu = float3(0.f);
-	float3 dpdv = float3(0.f);
-
-	float3 diffuse;
-	float3 specular;
-	float3 transmission;
-	float3 emission;
-	BSDF bsdf;
-	bool hasBSDF = false;
+	SurfaceInteraction() {}
+	SurfaceInteraction(const float3& p, const float2& uv, const float3& wo, const float3& dpdu, const float3& dpdv, const Material* mat) : 
+			p(p), 
+			wo(wo), 
+			n(normalize(cross(dpdu, dpdv))),
+			uv(uv), 
+			dpdu(dpdu),
+			dpdv(dpdv),
+			mat(mat) {
+		// initialize the shading geometry
+		shading.n = n;
+		shading.dpdu = dpdu;
+		shading.dpdv = dpdv;
+	}
 
 	void SetShadingGeometry(const float3& dpdus, const float3& dpdvs, bool orientationIsAuthorative) {
 		// Compute shading normal for surface interaction
-		ShadingN = normalize(cross(dpdus, dpdvs));
+		shading.n = normalize(cross(dpdus, dpdvs));
 		if (orientationIsAuthorative)
-			N = Faceforward(N, ShadingN);
+			n = Faceforward(n, shading.n);
 		else
-			ShadingN = Faceforward(ShadingN, N);
+			shading.n = Faceforward(shading.n, n);
 		dpdu = dpdus;
 		dpdv = dpdvs;
 	}
 
 	void EvalMaterial() {
-		if (mat->microfacet) {
-			bsdf = BSDF(N, ShadingN, dpdu);
-			bsdf.AddBxDF(mat->microfacet.get());
-			hasBSDF = true;
-		}
-		else if (mat->disney) {
-			bsdf = BSDF(N, ShadingN, dpdu);
+		if (mat->disney) {
+			bsdf = BSDF(*this);
 			if (mat->disney->diffuse)
 				bsdf.AddBxDF(mat->disney->diffuse.get());
 			if (mat->disney->retro)
@@ -54,16 +46,32 @@ public:
 			hasBSDF = true;
 		}
 
-		diffuse = (mat->diffuse) ? mat->diffuse->value(u, v) : float3(0.f);
-		specular = (mat->specular) ? mat->specular->value(u, v) : float3(0.f);
-		transmission = (mat->transmission) ? mat->transmission->value(u, v) : float3(0.f);
+		diffuse = mat->diffuse ? mat->diffuse->value(uv.x, uv.y) : float3(0.f);
 		emission = mat->emission;
 	}
+
+	// Interaction public data
+	float3 p; // intersection point
+	float3 wo;
+	float3 n;
+
+	float2 uv;
+	float3 dpdu, dpdv;
+	const Material* mat = nullptr; // PBRT uses Shape*
+	struct {
+		float3 n;
+		float3 dpdu, dpdv;
+	} shading;
+
+	BSDF bsdf;
+	bool hasBSDF;
+	float3 diffuse; // TODO diffuse should be part of the BSDF
+	float3 emission;
 };
 
 class Intersectable {
 public:
-	virtual bool Intersect(const Ray& ray, Hit& hit) const = 0;
+	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const = 0;
 
 	// Surface area of the Shape
 	// Mostly used for Direct light
@@ -80,7 +88,7 @@ class Plane : public Intersectable {
 public:
 	Plane(float3 o, float2 size, shared_ptr<Material> m) : O(o), HalfSize(size / 2), mat(m) {}
 
-	virtual bool Intersect(const Ray& ray, Hit& hit) const override {
+	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
 		if (ray.D.y == 0) return false; // ray is parallel to the plane
 		float t = (O.y - ray.O.y) / ray.D.y;
 		if (t <= 0 || t >= ray.t) return false; // make sure intersection is close enough
@@ -90,12 +98,8 @@ public:
 		float u = (P.x - O.x) / HalfSize.x;
 		float v = (P.z - O.z) / HalfSize.y;
 		if (fabsf(u) <= 1 && fabs(v) <= 1) {
-			hit.u = (u + 1) / 2.0f;
-			hit.v = (v + 1) / 2.0f;
-			hit.mat = mat.get();
+			hit = SurfaceInteraction(P, float2((u + 1) * .5f, (v + 1) * .5f), -ray.D, float3(0, 0, 1), float3(1, 0, 0), mat.get());
 			ray.t = t;
-			hit.I = P;
-			hit.N = hit.ShadingN = make_float3(0, 1, 0);
 			return true;
 		}
 		return false;
@@ -126,7 +130,7 @@ class Sphere : public Intersectable {
 public:
 	Sphere(float3 center, float radius, shared_ptr<Material> m) : Center(center), r(radius), r2(radius* radius), mat(m) {}
 
-	virtual bool Intersect(const Ray& ray, Hit& hit) const override {
+	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
 		float3 oc = ray.O - Center;
 		// ray.D is normalized => a = 1
 		float half_b = dot(oc, ray.D);
@@ -144,13 +148,9 @@ public:
 				return false;
 		}
 
-		ray.t = root;
-		hit.mat = mat.get();
-		hit.I = ray.at(root);
-		hit.ShadingN = hit.N = normalize(hit.I - Center);
-
 		// compute point partial derivatives
-		float3 pHit = hit.I - Center; // intersection point in Sphere's local coordinates system
+		float3 p = ray.at(root);
+		float3 pHit = p - Center; // intersection point in Sphere's local coordinates system
 		if (pHit.x == 0 && pHit.y == 0) pHit.x = EPSILON * r;
 		float phi = atan2(pHit.y, pHit.x);
 		if (phi < 0) phi += TWOPI;
@@ -159,8 +159,11 @@ public:
 		float invZRadius = 1 / zRadius;
 		float cosPhi = pHit.x * invZRadius;
 		float sinPhi = pHit.y * invZRadius;
-		hit.dpdu = float3(-TWOPI * pHit.y, TWOPI * pHit.x, 0);
-		hit.dpdv = PI * float3(pHit.z * cosPhi, pHit.z * sinPhi, -r * sin(theta));
+		float3 dpdu = float3(-TWOPI * pHit.y, TWOPI * pHit.x, 0);
+		float3 dpdv = PI * float3(pHit.z * cosPhi, pHit.z * sinPhi, -r * sin(theta));
+
+		hit = SurfaceInteraction(p, float2(phi * INV2PI, (theta - PI * .5f) * INVPI), -ray.D, dpdv, dpdu, mat.get());
+		ray.t = root;
 
 		return true;
 	}

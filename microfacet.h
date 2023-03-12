@@ -153,7 +153,7 @@ private:
 };
 
 // https://seblagarde.wordpress.com/2013/04/29/memo-on-fresnel-equations/
-float3 FrConductor(float cosThetaI, const float3& etai, const float3& etat, const float3& k) {
+inline float3 FrConductor(float cosThetaI, const float3& etai, const float3& etat, const float3& k) {
     cosThetaI = clamp(cosThetaI, -1.f, 1.f);
     float3 eta = etat / etai;
     float3 etak = k / etai;
@@ -177,7 +177,7 @@ float3 FrConductor(float cosThetaI, const float3& etai, const float3& etat, cons
     return 0.5 * (Rp + Rs);
 }
 
-float FrDielectric(float cosThetaI, float etaI, float etaT) {
+inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
     cosThetaI = clamp(cosThetaI, -1.f, 1.f);
     // Potentially swap indices of refraction
     bool entering = cosThetaI > 0.f;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "disney.h"
+
 class Texture {
 public:
 	virtual float3 value(float u, float v) const = 0;
@@ -88,9 +90,6 @@ class Material {
 public:
 	float ref_idx = 1.f;				// reflection index
 	shared_ptr<Texture> diffuse;
-	shared_ptr<Texture> specular;
-	shared_ptr<Texture> transmission;
-	shared_ptr<MicrofacetReflection> microfacet;
 	shared_ptr<DisneyMaterial> disney;
 	float3 emission = float3(0.f);
 
@@ -100,34 +99,9 @@ public:
 		return lambertian;
 	}
 
-	static shared_ptr<Material> make_glass(float ref_idx, float3 transmission = float3(1.f)) {
-		auto glass = make_shared<Material>();
-		glass->ref_idx = ref_idx;
-		glass->transmission = SolidColor::make(transmission);
-		glass->specular = SolidColor::make(1.0f);
-		return glass;
-	}
-
-	static shared_ptr<Material> make_mirror(float r, float g, float b) {
-		auto mirror = make_shared<Material>();
-		mirror->specular = SolidColor::make(float3(r, g, b));
-		return mirror;
-	}
-
-	static shared_ptr<Material> make_emitter(float r, float g, float b) {
+	static shared_ptr<Material> make_emitter(const float3 e) {
 		auto mat = make_shared <Material>();
-		mat->emission = float3(r, g, b);
-		return mat;
-	}
-
-	static shared_ptr<Material> make_metal(float roughness, const float3& eta, const float3& k) {
-		auto mat = make_shared<Material>();
-
-		float uRough = TrowbridgeReitzDistribution::RoughnessToAlpha(roughness);
-		float vRough = TrowbridgeReitzDistribution::RoughnessToAlpha(roughness);
-		MicrofacetDistribution* distribution = new TrowbridgeReitzDistribution(uRough, vRough);
-		Fresnel* fresnel = new FresnelConductor(float3(1.f), eta, k);
-		mat->microfacet = make_shared<MicrofacetReflection>(float3(1.f), distribution, fresnel);
+		mat->emission = e;
 		return mat;
 	}
 

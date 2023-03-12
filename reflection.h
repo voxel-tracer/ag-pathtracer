@@ -60,18 +60,15 @@ private:
     const Fresnel* fresnel;
 };
 
+class SurfaceInteraction;
+
 // Slightly simplified version that contains a fixed number of non-specular reflection BxDFs
 class BSDF {
 public:
     BSDF() {}
-    BSDF(const float3& N, const float3& shadingN, const float3& dpdu, float eta = 1.f)
-        : eta(eta),
-        ng(N),
-        ns(shadingN),
-        ss(normalize(dpdu)),
-        ts(cross(ns, ss)) {}
+    BSDF(const SurfaceInteraction& si, float eta = 1.f);
 
-    void AddBxDF(BxDF* b) {
+    void AddBxDF(const BxDF* b) {
         bxdfs[nBxDFs++] = b;
     }
     int NumComponents() const { return nBxDFs; }
@@ -107,7 +104,7 @@ public:
             std::min((int)std::floor(u[0] * matchingComps), matchingComps - 1);
 
         // get BxDF pointer to choosen component
-        BxDF* bxdf = nullptr;
+        const BxDF* bxdf = nullptr;
         int count = comp;
         for (int i = 0; i < nBxDFs; i++)
             if (count-- == 0) {
@@ -163,5 +160,5 @@ private:
 
     int nBxDFs = 0;
     static constexpr int MaxBxDFs = 3;
-    BxDF* bxdfs[MaxBxDFs];
+    const BxDF* bxdfs[MaxBxDFs];
 };

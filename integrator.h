@@ -10,7 +10,7 @@ public:
 	Scene(vector<shared_ptr<Intersectable>> p, const CameraDesc& cam) :
 		primitives(move(p)), camera(cam) {}
 
-	bool NearestIntersection(const Ray& ray, Hit& hit) const {
+	bool NearestIntersection(const Ray& ray, SurfaceInteraction& hit) const {
 		bool found = false;
 		for (auto& primitive : primitives) {
 			if (primitive->Intersect(ray, hit)) {
@@ -47,55 +47,6 @@ float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 class Integrator {
 public:
 	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const = 0;
-
-protected:
-	float3 SpecularReflection(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
-		float3 D = reflect(ray.D, hit.N);
-		float3 O = hit.I + EPSILON * D;
-		return hit.specular * Li(Ray(O, D), scene, depth + 1, true);
-	}
-
-	float3 SpecularTransmission(const Ray& ray, const Hit& hit, const Scene& scene, int depth) const {
-		// figure out if we are entering or exiting the object
-		auto entering = dot(ray.D, hit.N) < 0;
-		auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
-
-		// absorption can only happen inside a glass (entering == false)
-		float3 transmission(1.0f);
-		if (!entering) transmission = pow(hit.transmission, ray.t);
-
-		// compute refraction index assuming external material is air
-		float etaI, etaT;
-		if (entering) { // air -> material
-			etaI = 1.0f; // air
-			etaT = hit.mat->ref_idx;
-		}
-		else { // material -> air
-			etaI = hit.mat->ref_idx;
-			etaT = 1.0f;
-		}
-
-		// thetaI is the incident angle
-		// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
-		float cos_thetaI = fmaxf(dot(ray.D, N), -1.0f);
-
-		float3 T;
-		float Fr = 1;
-		float3 L(0.f);
-		if (refract(ray.D, N, cos_thetaI, etaI / etaT, T)) {
-			// some light is refracted, compute Fresnel reflection
-			Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
-			// trace refracted ray
-			L += (1 - Fr) * transmission * Li(Ray(hit.I + EPSILON * (-N), T), scene, depth + 1, true);
-		}
-
-		// TODO we should also account for reflections (total internal reflection + Fresnel reflection at the surface)
-		// trace reflected ray
-		// float3 R = reflect(ray.D, N);
-		// L += Fr * transmission * Li(Ray(hit.I + EPSILON * N, R), scene, depth + 1);
-
-		return L;
-	}
 };
 
 class PathTracer : public Integrator {
@@ -108,7 +59,7 @@ public:
 
 		Ray curRay = ray;
 		while (true) {
-			Hit hit;
+			SurfaceInteraction hit;
 			if (!scene.NearestIntersection(curRay, hit)) {
 				// Ray left the scene, handle infinite lights
 				for (const auto& light : scene.lights) E += T * light->Le(curRay);
@@ -140,57 +91,13 @@ public:
 				T *= SampleIndirectLight(hit, scene, &R);
 				isSpecular = false;
 			}
-			else if (!isblack(hit.specular) || !isblack(hit.transmission)) {
-				auto entering = dot(curRay.D, hit.N) < 0;
-				auto N = entering ? hit.N : -hit.N; // make sure surface normal is on same side as ray
-
-				// absorption can only happen inside a glass (entering == false)
-				float3 transmission(1.0f);
-				if (!entering) transmission = pow(hit.transmission, curRay.t);
-
-				// compute refraction index assuming external material is air
-				float etaI, etaT;
-				if (entering) { // air -> material
-					etaI = 1.0f; // air
-					etaT = hit.mat->ref_idx;
-				}
-				else { // material -> air
-					etaI = hit.mat->ref_idx;
-					etaT = 1.0f;
-				}
-
-				// thetaI is the incident angle
-				// notice that we are using ray.D and the normal facing N so cos_thetaI will always be negative
-				float cos_thetaI = fmaxf(dot(curRay.D, N), -1.0f);
-
-				// Compute Fresnel reflection
-				auto Fr = FresnelSchlick(etaI, etaT, cos_thetaI);
-
-				// pick reflection or refraction randomly according to the Fresnel reflection
-				if (RandomFloat() < Fr) {
-					// Specular reflection
-					R = reflect(curRay.D, N);
-					T *= hit.specular;
-					isSpecular = true;
-				}
-				else {
-					// Specular refraction
-					if (!refract(curRay.D, N, cos_thetaI, etaI / etaT, R)) {
-						// total internal reflection
-						break;
-					}
-
-					T *= transmission;
-					isSpecular = true;
-				}
-			}
 
 			// Russian roulette
 			float p = clamp(max(T.x, max(T.y, T.z)), EPSILON, 1.f);
 			if (RandomFloat() > p) break;
 			T *= 1.f / p; // add the energy we lose by randomly killing paths
 
-			curRay = Ray(hit.I + EPSILON * R, R);
+			curRay = Ray(hit.p + EPSILON * R, R);
 			depth++;
 		}
 
@@ -199,12 +106,12 @@ public:
 
 protected:
 
-	float3 SampleMicrofacet(const Hit& hit, const Scene& scene, const float3& wo, float3* R) const {
+	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, const float3& wo, float3* R) const {
 		float pdf;
 		float2 u(RandomFloat(), RandomFloat());
 		float3 BRDF = hit.bsdf.Sample_f(wo, R, u, &pdf);
 		if (pdf == 0) return float3(0.f);
-		return BRDF * absdot(hit.ShadingN, *R) / pdf;
+		return BRDF * absdot(hit.shading.n, *R) / pdf;
 	}
 
 	float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
@@ -213,25 +120,25 @@ protected:
 		return R;
 	}
 
-	float3 SampleIndirectLight(const Hit& hit, const Scene& scene, float3* R) const {
+	float3 SampleIndirectLight(const SurfaceInteraction& hit, const Scene& scene, float3* R) const {
 		float pdf;
-		*R = SampleDirectionInHemisphere(hit.N, &pdf);
+		*R = SampleDirectionInHemisphere(hit.n, &pdf);
 		// update throughput
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		return BRDF * dot(hit.N, *R) / pdf;
+		return BRDF * dot(hit.n, *R) / pdf;
 	}
 
-	float3 IndirectLight(const Hit& hit, const Scene& scene, int depth) const {
+	float3 IndirectLight(const SurfaceInteraction& hit, const Scene& scene, int depth) const {
 		float pdf;
-		auto R = SampleDirectionInHemisphere(hit.N, &pdf);
-		Ray newRay(hit.I + EPSILON * R, R);
+		auto R = SampleDirectionInHemisphere(hit.n, &pdf);
+		Ray newRay(hit.p + EPSILON * R, R);
 		// update throughput
 		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.N, R); // irradiance
+		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.n, R); // irradiance
 		return BRDF * Ei / pdf;
 	}
 
-	float3 EstimateDirect(const Scene& scene, const float3& wo, const Hit& hit) const {
+	float3 EstimateDirect(const Scene& scene, const float3& wo, const SurfaceInteraction& hit) const {
 		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
 
 		// pick one random light
@@ -239,16 +146,16 @@ protected:
 		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
 		const auto& light = scene.lights[lightIdx];
 		float3 S, lightN;
-		if (!light->Sample(hit.I, &S, &lightN)) return false; // light doesn't support sampling
-		float3 toL = S - hit.I;
+		if (!light->Sample(hit.p, &S, &lightN)) return false; // light doesn't support sampling
+		float3 toL = S - hit.p;
 		float dist = length(toL);
 		toL /= dist;
 		float cos_o = dot(-toL, lightN);
-		float cos_i = absdot(toL, hit.ShadingN);
+		float cos_i = absdot(toL, hit.shading.n);
 		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
 		// light is not behind surface point, trace shadow ray
-		Ray newRay(hit.I + EPSILON * toL, toL, dist - 2 * EPSILON);
-		Hit tmpHit;
+		Ray newRay(hit.p + EPSILON * toL, toL, dist - 2 * EPSILON);
+		SurfaceInteraction tmpHit;
 		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
 		// light is visible, calculate transport
 		float3 BRDF;

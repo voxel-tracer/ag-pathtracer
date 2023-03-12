@@ -13,14 +13,16 @@ struct index_type {
 
 class TriangleMesh : public Intersectable {
 public:
-    TriangleMesh(
-        const vector<index_type>& indices, const vector<float3>& vertices, const vector<float3>& normals,
-        const vector<float2>& texcoords, shared_ptr<Material> mat) : indices(move(indices)), vertices(move(vertices)),
-        normals(move(normals)), texcoords(move(texcoords)), mat(mat) {};
+    TriangleMesh(vector<index_type>& indices, vector<float3>& vertices, vector<float3>& normals, vector<float2>& texcoords, shared_ptr<Material> mat) :
+        indices(std::move(indices)), 
+        vertices(std::move(vertices)), 
+        normals(std::move(normals)), 
+        texcoords(std::move(texcoords)), 
+        mat(mat) {}
     TriangleMesh(shared_ptr<TriangleMesh> trimesh) : 
         TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, trimesh->mat) {};
 
-    virtual bool Intersect(const Ray& ray, Hit& hit) const override {
+    virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
         bool hit_anything = false;
 
         for (auto i = 0; i < indices.size(); i+= 3) {
@@ -33,7 +35,7 @@ public:
     }
 
 protected:
-    bool TriangleIntersect(const Ray& ray, int tridx, Hit& hit) const {
+    bool TriangleIntersect(const Ray& ray, int tridx, SurfaceInteraction& hit) const {
         auto& v0 = vertices[indices[tridx + 0].vertex_index];
         auto& v1 = vertices[indices[tridx + 1].vertex_index];
         auto& v2 = vertices[indices[tridx + 2].vertex_index];
@@ -71,8 +73,6 @@ protected:
         if (t <= 0.0f || t >= ray.t)
             return false;
 
-        hit.mat = mat.get();
-
         // compute texture coordinates
         float2 uv[3];
         if (!texcoords.empty()) {
@@ -86,8 +86,6 @@ protected:
             uv[2] = float2(1, 1);
         }
         auto tc = uv[0] * b0 + uv[1] * b1 + uv[2] * b2;
-        hit.u = tc.x;
-        hit.v = tc.y;
 
         // Compute triangle partial derivatives
         float3 dpdu, dpdv;
@@ -111,11 +109,11 @@ protected:
 
             CoordinateSystem(normalize(ng), &dpdu, &dpdv);
         }
-        hit.dpdu = dpdu;
-        hit.dpdv = dpdv;
+
+        hit = SurfaceInteraction(ray.at(t), tc, -ray.D, dpdu, dpdv, mat.get());
+        ray.t = t;
 
         // compute normal
-        hit.ShadingN = hit.N = normalize(cross(dp02, dp12));
         if (!normals.empty()) {
             // Initialize Triangle shading geometry
 
@@ -127,7 +125,7 @@ protected:
             if (sqrLength(ns) > 0.f)
                 ns = normalize(ns);
             else
-                ns = hit.N;
+                ns = hit.n;
 
             // Compute shading tangent _ss_ for triangle
             float3 ss = normalize(hit.dpdu);
@@ -142,9 +140,6 @@ protected:
                 CoordinateSystem(ns, &ss, &ts);
             hit.SetShadingGeometry(ss, ts, true);
         }
-        
-        hit.I = ray.at(t);
-        ray.t = t;
 
         return true;
     }

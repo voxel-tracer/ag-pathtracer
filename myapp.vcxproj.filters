@@ -5,6 +5,7 @@
       <Filter>template</Filter>
     </ClCompile>
     <ClCompile Include="myapp.cpp" />
+    <ClCompile Include="reflection.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="template\common.h">

@@ -182,7 +182,7 @@ public:
         FREE64(nodes);
     }
 
-    virtual bool Intersect(const Ray& ray, Hit& hit) const override {
+    virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
         float dist;
         if (!nodes[0].bounds.Intersect(ray, dist)) {
             return false;
@@ -194,7 +194,7 @@ protected:
     shared_ptr<BVHBuildNode> BuildRecursive(int start, int end, int maxPrimsInNode, int* totalNodes);
     void FlattenBVHTree(const BVHBuildNode* node, int offset, int* firstChildOffset);
 
-    bool RecursiveHit(const BVHNode& node, const Ray& ray, Hit& rec) const;
+    bool RecursiveHit(const BVHNode& node, const Ray& ray, SurfaceInteraction& rec) const;
 
     vector<Primitive> primitives;
 
@@ -320,7 +320,7 @@ void BVHTriMesh::FlattenBVHTree(const BVHBuildNode* node, int offset, int* first
     }
 }
 
-bool BVHTriMesh::RecursiveHit(const BVHNode& node, const Ray& ray, Hit& hit) const {
+bool BVHTriMesh::RecursiveHit(const BVHNode& node, const Ray& ray, SurfaceInteraction& hit) const {
     auto hit_anything = false;
 
     // is it a leaf node ?

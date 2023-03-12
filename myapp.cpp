@@ -34,7 +34,7 @@ shared_ptr<Scene> BunnyScene() {
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
-	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
+	auto lightMat = Material::make_emitter(lightE);
 	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
 	primitives.push_back(light);
 
@@ -61,11 +61,11 @@ shared_ptr<Scene> SimpleTestScene() {
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
+	//primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
-	auto lightMat = Material::make_emitter(lightE.x, lightE.y, lightE.z);
+	auto lightMat = Material::make_emitter(lightE);
 	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
 	primitives.push_back(light);
 
@@ -151,12 +151,12 @@ void MyApp::Tick( float deltaTime )
 	if (paused && accumulator->IsInside(mousePos.x, mousePos.y)) {
 		auto fc = accumulator->WindowToFilm(mousePos);
 		Ray ray = camera->GetRay(fc.x, fc.y);
-		Hit hit;
+		SurfaceInteraction hit;
 		if (scene->NearestIntersection(ray, hit)) {
-			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.I));
-			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.ShadingN));
-			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdu));
-			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.I + hit.dpdv));
+			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.p));
+			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.shading.n));
+			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdu));
+			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdv));
 			screen->Line(p.x, p.y, n.x, n.y, 0x0000FF);
 			screen->Line(p.x, p.y, dpdu.x, dpdu.y, 0xFF0000);
 			screen->Line(p.x, p.y, dpdv.x, dpdv.y, 0x00FF00);
