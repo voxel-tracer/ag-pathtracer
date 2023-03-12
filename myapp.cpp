@@ -61,7 +61,7 @@ shared_ptr<Scene> SimpleTestScene() {
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	//primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
+	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);

@@ -74,9 +74,7 @@ public:
 				break;
 			}
 
-			float3 wo = -curRay.D;
-
-			E += T * EstimateDirect(scene, wo, hit);
+			E += T * EstimateDirect(scene, hit);
 
 			// terminate if we exceed MaxDepth
 			if (depth + 1 > MaxDepth) break;
@@ -84,7 +82,7 @@ public:
 			// for now assume a material can only be diffuse or specular or refractive
 			float3 R;
 			if (hit.hasBSDF) {
-				T *= SampleMicrofacet(hit, scene, wo, &R);
+				T *= SampleMicrofacet(hit, scene, &R);
 				isSpecular = false;
 			}
 			else if (!isblack(hit.diffuse)) {
@@ -106,10 +104,10 @@ public:
 
 protected:
 
-	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, const float3& wo, float3* R) const {
+	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, float3* R) const {
 		float pdf;
 		float2 u(RandomFloat(), RandomFloat());
-		float3 BRDF = hit.bsdf.Sample_f(wo, R, u, &pdf);
+		float3 BRDF = hit.bsdf.Sample_f(hit.wo, R, u, &pdf);
 		if (pdf == 0) return float3(0.f);
 		return BRDF * absdot(hit.shading.n, *R) / pdf;
 	}
@@ -138,7 +136,7 @@ protected:
 		return BRDF * Ei / pdf;
 	}
 
-	float3 EstimateDirect(const Scene& scene, const float3& wo, const SurfaceInteraction& hit) const {
+	float3 EstimateDirect(const Scene& scene, const SurfaceInteraction& hit) const {
 		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
 
 		// pick one random light
@@ -160,7 +158,7 @@ protected:
 		// light is visible, calculate transport
 		float3 BRDF;
 		if (hit.hasBSDF) {
-			BRDF = hit.bsdf.f(wo, toL);
+			BRDF = hit.bsdf.f(hit.wo, toL);
 		}
 		else {
 			BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi

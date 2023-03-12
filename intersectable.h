@@ -45,6 +45,9 @@ public:
 				bsdf.AddBxDF(mat->disney->microfacet.get());
 			hasBSDF = true;
 		}
+		else {
+			hasBSDF = false;
+		}
 
 		diffuse = mat->diffuse ? mat->diffuse->value(uv.x, uv.y) : float3(0.f);
 		emission = mat->emission;
@@ -152,9 +155,13 @@ public:
 		float3 p = ray.at(root);
 		float3 pHit = p - Center; // intersection point in Sphere's local coordinates system
 		if (pHit.x == 0 && pHit.y == 0) pHit.x = EPSILON * r;
-		float phi = atan2(pHit.y, pHit.x);
+		float phi = std::atan2(pHit.y, pHit.x);
 		if (phi < 0) phi += TWOPI;
-		float theta = acos(clamp(pHit.z / r, -1.f, 1.f));
+		float u = phi * INV2PI;
+
+		float theta = std::acos(clamp(pHit.z / r, -1.f, 1.f));
+		float v = (theta + PI * .5f) * INVPI;
+
 		float zRadius = sqrt(pHit.x * pHit.x + pHit.y * pHit.y);
 		float invZRadius = 1 / zRadius;
 		float cosPhi = pHit.x * invZRadius;
@@ -162,7 +169,8 @@ public:
 		float3 dpdu = float3(-TWOPI * pHit.y, TWOPI * pHit.x, 0);
 		float3 dpdv = PI * float3(pHit.z * cosPhi, pHit.z * sinPhi, -r * sin(theta));
 
-		hit = SurfaceInteraction(p, float2(phi * INV2PI, (theta - PI * .5f) * INVPI), -ray.D, dpdv, dpdu, mat.get());
+		// NOTE: I don't know why but I need to invert the computed dpdu/dpdv in order to get the normal to correctly point out of the sphere
+		hit = SurfaceInteraction(p, float2(u, v), -ray.D, dpdv, dpdu, mat.get());
 		ray.t = root;
 
 		return true;

@@ -45,11 +45,13 @@ public:
 	}
 
 	inline float2 FilmToWindow(const float2& p) const {
-		return float2(p.x * width + screenPos.x, p.y * height + screenPos.y);
+		return float2(p.x * width + screenPos.x, height - 1 - (p.y * height + screenPos.y));
 	}
 
 	inline float2 WindowToFilm(const int2& p) const {
-		return float2((float)(p.x - screenPos.x) / width, (float)(p.y - screenPos.y) / height);
+		float x = float(p.x - screenPos.x);
+		float y = float(p.y - screenPos.y);
+		return float2(x / width, (height - 1 - y) / height);
 	}
 
 	inline float2 PixelToFilm(const float2& p) const {
