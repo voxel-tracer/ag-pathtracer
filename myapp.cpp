@@ -143,6 +143,11 @@ void MyApp::Tick( float deltaTime )
 			printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r",
 				accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
 		}
+
+		if (numFramesToPause > 0 && accumulator->NumSamples() >= numFramesToPause) {
+			numFramesToPause += 128;
+			paused = true;
+		}
 	}
 
 
