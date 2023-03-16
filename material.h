@@ -89,15 +89,8 @@ struct DisneyMaterial {
 class Material {
 public:
 	float ref_idx = 1.f;				// reflection index
-	shared_ptr<Texture> diffuse;
 	shared_ptr<DisneyMaterial> disney;
 	float3 emission = float3(0.f);
-
-	static shared_ptr<Material> make_lambertian(shared_ptr<Texture> diffuse) {
-		auto lambertian = make_shared<Material>();
-		lambertian->diffuse = diffuse;
-		return lambertian;
-	}
 
 	static shared_ptr<Material> make_emitter(const float3 e) {
 		auto mat = make_shared <Material>();

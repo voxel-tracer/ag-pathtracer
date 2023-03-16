@@ -14,13 +14,13 @@ struct index_type {
 class TriangleMesh : public Intersectable {
 public:
     TriangleMesh(vector<index_type>& indices, vector<float3>& vertices, vector<float3>& normals, vector<float2>& texcoords, shared_ptr<Material> mat) :
+        Intersectable(mat),
         indices(std::move(indices)), 
         vertices(std::move(vertices)), 
         normals(std::move(normals)), 
-        texcoords(std::move(texcoords)), 
-        mat(mat) {}
+        texcoords(std::move(texcoords)) {}
     TriangleMesh(shared_ptr<TriangleMesh> trimesh) : 
-        TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, trimesh->mat) {};
+        TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, trimesh->material) {};
 
     virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
         bool hit_anything = false;
@@ -110,7 +110,7 @@ protected:
             CoordinateSystem(normalize(ng), &dpdu, &dpdv);
         }
 
-        hit = SurfaceInteraction(ray.at(t), tc, -ray.D, dpdu, dpdv, mat.get());
+        hit = SurfaceInteraction(ray.at(t), tc, -ray.D, dpdu, dpdv, this);
         ray.t = t;
 
         // compute normal
@@ -144,7 +144,6 @@ protected:
         return true;
     }
 
-    shared_ptr<Material> mat;
     vector<float3> vertices;
     vector<float3> normals;
     vector<float2> texcoords;

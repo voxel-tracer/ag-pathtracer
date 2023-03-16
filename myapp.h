@@ -107,7 +107,7 @@ public:
 	shared_ptr<Accumulator> accumulator;
 
 	bool paused = false;
-	int numFramesToPause = 128;
+	int numFramesToPause = -1;
 };
 
 } // namespace Tmpl8

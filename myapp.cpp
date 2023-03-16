@@ -9,19 +9,15 @@
 #include "tiny_obj_loader.h"
 
 shared_ptr<Scene> BunnyScene() {
-	float3 dark_red(.1f, 0.f, 0.f);
-	auto light_grey = make_shared<SolidColor>(.8f);
-	auto dark_grey = make_shared<SolidColor>(.1f);
-	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
-
-	auto mat = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
-	auto floor = Material::make_lambertian(checker);
+	auto red = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
+	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.2f, 1.f);
+	auto floor = Material::make_disney(float3(.8f), .5f, 0.f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, -1, 0) * mat4::RotateY(radians(60));
 	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", mat, transform);
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", red, transform);
 	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
 
 	CameraDesc camera;
@@ -35,11 +31,14 @@ shared_ptr<Scene> BunnyScene() {
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(lightE);
-	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
+	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat); // TODO: find a way to set the arealight on this shape
+	auto arealight = make_shared<AreaLight>(light, lightE);
+	light->SetAreaLight(arealight);
+
 	primitives.push_back(light);
 
 	auto scene = make_shared<Scene>(primitives, camera);
-	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
+	scene->lights.push_back(arealight);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
 
 	return scene;
@@ -52,33 +51,37 @@ shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const f
 
 // Keep this as it matches PBRT's simple.pbrt
 shared_ptr<Scene> SimpleTestScene() {
-	auto light_grey = make_shared<SolidColor>(.8f);
-	auto dark_grey = make_shared<SolidColor>(.1f);
-	auto checker = make_shared<CheckerTexture>(light_grey, dark_grey);
-	auto floor = Material::make_lambertian(checker);
+	auto floor = Material::make_disney(float3(.8f), 1.f, 0.f);
 
-	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
+	//auto c = rgb2lin(float3(.529f, .145f, .039f));
+	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
+	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .5f, 0.f);
+	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.1f, 0.f);
+
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, disneyDielectric));
+	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, gold));
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
 	auto lightMat = Material::make_emitter(lightE);
 	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
+
+	auto lightarea = make_shared<AreaLight>(light, lightE);
+	light->SetAreaLight(lightarea);
 	primitives.push_back(light);
 
 	CameraDesc camera;
 	camera.lookfrom = float3(3.f, 1.5f, 4.f);
-	camera.lookat = float3(0, 0, 0);
+	camera.lookat = float3(0.5, 0, 0.5);
 	camera.vup = float3(0, 1, 0);
 	camera.aspect_ratio = 1;
 	//camera.aperture = .1f;
 
 	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-	scene->lights.push_back(make_shared<AreaLight>(light, lightE));
+	scene->lights.push_back(lightarea);
 
 	return scene;
 }
@@ -95,7 +98,7 @@ void MyApp::Init()
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	integratorR = make_shared<PathTracer>();
-	integratorL = integratorR;
+	integratorL = make_shared<PathTracer>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	int2 scrPos((SCRWIDTH - MinScrSize) / 2, (SCRHEIGHT - MinScrSize) / 2);
@@ -129,7 +132,7 @@ void MyApp::Tick( float deltaTime )
 				float2 p(x + RandomFloat(), y + RandomFloat());
 				float2 uv = accumulator->PixelToFilm(p);
 				Ray ray = camera->GetRay(uv.x, uv.y);
-				float3 clr = (uv.x < 0.5f) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene, 0, true);
+				float3 clr = (uv.x < 0.5f) ? integratorL->Li(ray, *scene) : integratorR->Li(ray, *scene);
 				if (HasNans(clr) || std::isinf(Luminance(clr))) {
 					//std::cerr << "outlier\n";
 					clr = float3(0.f);

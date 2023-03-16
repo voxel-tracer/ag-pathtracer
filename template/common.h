@@ -42,6 +42,12 @@ inline uint rgb2uint(float3 clr) {
 	return (r << 16) + (g << 8) + b;
 }
 
+inline float GammaCorrect(float value) {
+	if (value <= 0.0031308f) return 12.92f * value;
+	return 1.055f * std::pow(value, (1.f / 2.4f)) - 0.055f;
+}
+
+
 inline float RandomFloat(float min, float max) {
 	// Returns a random real in [min,max).
 	return min + (max - min) * RandomFloat();
@@ -65,6 +71,13 @@ inline float3 RandomInSphere(float Radius = 1.f) {
 		Radius * b * sin(phi),
 		Radius * a
 	);
+}
+
+inline float3 RandomInSphere(const float2& u) {
+	auto a = 1 - 2 * u[0];
+	auto b = sqrt(1 - a * a);
+	auto phi = 2 * PI * u[1];
+	return make_float3(b * cos(phi), b * sin(phi), a);
 }
 
 inline float3 RandomInHemisphere(const float3& N) {
@@ -129,7 +142,14 @@ inline void CoordinateSystem(const float3& v1, float3* v2, float3* v3) {
 	*v3 = cross(v1, *v2);
 }
 
+inline float3 SphericalDirection(float sinTheta, float cosTheta, float phi,
+		const float3& x, const float3& y, const float3& z) {
+	return sinTheta * std::cos(phi) * x + sinTheta * std::sin(phi) * y + cosTheta * z;
+}
 
+inline float UniformConePdf(float cosThetaMax) {
+	return 1 / (2 * PI * (1 - cosThetaMax));
+}
 
 // IMPORTANT NOTE ON OPENCL COMPATIBILITY ON OLDER LAPTOPS:
 // Without a GPU, a laptop needs at least a 'Broadwell' Intel CPU (5th gen, 2015):

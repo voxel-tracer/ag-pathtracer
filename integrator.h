@@ -25,7 +25,7 @@ public:
 	CameraDesc camera;
 };
 
-bool refract(const float3& I, const float3& N, float cos_thetaI, float etai_over_etat, float3& T) {
+inline bool refract(const float3& I, const float3& N, float cos_thetaI, float etai_over_etat, float3& T) {
 	// thetaI is the incident angle
 	// N is always facing the ray origin and I is pointing toward the surface => cos_thetaI will always be negative
 	float sin_thetaI = sqrtf(1.f - cos_thetaI * cos_thetaI);
@@ -38,7 +38,7 @@ bool refract(const float3& I, const float3& N, float cos_thetaI, float etai_over
 	return true;
 }
 
-float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
+inline float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 	float r0 = (etaI - etaI) / (etaI + etaI);
 	r0 = r0 * r0;
 	return r0 + (1 - r0) * powf((1 + cos_thetaI), 5); // we use +cos_thetaI instead of -cos_thetaI because we used ray.D to compute the cosine
@@ -46,14 +46,89 @@ float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 
 class Integrator {
 public:
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const = 0;
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const = 0;
 };
+
+inline float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
+	float f = nf * fPdf, g = ng * gPdf;
+	return (f * f) / (f * f + g * g);
+}
+
+inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScattering, const Light& light, const float2& uLight, const Scene& scene, bool MIS = false) {
+	float3 Ld(0.f);
+	float3 wi;
+	float lightPdf = 0, scatteringPdf = 0;
+	VisibilityTester visibility;
+	float3 Li = light.Sample_Li(si, uLight, &wi, &lightPdf, &visibility);
+	if (lightPdf > 0 && !IsBlack(Li)) {
+		// Evaluate BSDF for light sampling strategy
+		float3 f = si.bsdf.f(si.wo, wi) * absdot(wi, si.shading.n);
+		scatteringPdf = si.bsdf.Pdf(si.wo, wi);
+		if (!IsBlack(f)) {
+			// Compute effect of visibility for light source sample
+			if (!visibility.Unoccluded(scene))
+				Li = float3(0.f);
+
+			// Add light's contribution to reflected radiance
+			if (!IsBlack(Li)) {
+				// TODO handle delta lights (point light)
+				float weight = PowerHeuristic(1, lightPdf, 1, scatteringPdf);
+				Ld += f * Li * weight / lightPdf;
+			}
+		}
+	}
+
+	// Sample BSDF with multiple importance sampling
+	if (MIS)
+	{
+		float3 f;
+		// Sample scattered direction
+		f = si.bsdf.Sample_f(si.wo, &wi, uScattering, &scatteringPdf);
+		f *= absdot(wi, si.shading.n);
+
+		if (!isblack(f) && scatteringPdf > 0) {
+			// Account for light contribution along sampled direction _wi_
+			float weight = 1;
+			lightPdf = light.Pdf_Li(si, wi);
+			if (lightPdf == 0) return Ld;
+			weight = PowerHeuristic(1, scatteringPdf, 1, lightPdf);
+
+			// Find Intersection
+			SurfaceInteraction lightIsect;
+			Ray ray(si.p + EPSILON * wi, wi);
+			bool foundSurfaceInteraction = scene.NearestIntersection(ray, lightIsect);
+			// Add light contribution from material sampling
+			float3 Li(0.f);
+			if (foundSurfaceInteraction) {
+				if (lightIsect.shape->GetAreaLight() == &light)
+					Li = light.L; // TODO we should use Light::L(si, -wi)
+			}
+			else
+				Li = light.Le(ray);
+			if (!isblack(Li)) Ld += f * Li * weight / scatteringPdf;
+		}
+	}
+
+	return Ld;
+}
+
+inline float3 UniformSampleOneLight(const SurfaceInteraction& si, const Scene& scene, bool MIS = false) {
+	// Randomly choose a single light to sample, _light_
+	int nLights = int(scene.lights.size());
+	if (nLights == 0) return float3(0.f);
+	int numLight = std::min((int)(RandomFloat() * nLights), nLights - 1);
+	float lightPdf = 1.f / nLights;
+	const std::shared_ptr<Light>& light = scene.lights[numLight];
+	float2 uLight(RandomFloat(), RandomFloat());
+	float2 uScattering(RandomFloat(), RandomFloat());
+	return EstimateDirect(si, uScattering, *light, uLight, scene, MIS) / lightPdf;
+}
 
 class PathTracer : public Integrator {
 public:
-	PathTracer(int maxDepth = 5) : MaxDepth(maxDepth) {}
+	PathTracer(int maxDepth = 5, bool MIS = true) : MaxDepth(maxDepth), MIS(MIS) {}
 
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = false) const override {
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const override {
 		float3 T(1.f); // current ray throughput
 		float3 E(0.f);
 
@@ -62,7 +137,9 @@ public:
 			SurfaceInteraction hit;
 			if (!scene.NearestIntersection(curRay, hit)) {
 				// Ray left the scene, handle infinite lights
-				for (const auto& light : scene.lights) E += T * light->Le(curRay);
+				if (isSpecular)
+					for (const auto& light : scene.lights) 
+						E += T * light->Le(curRay);
 				break;
 			}
 
@@ -74,19 +151,15 @@ public:
 				break;
 			}
 
-			E += T * EstimateDirect(scene, hit);
+			E += T * UniformSampleOneLight(hit, scene, MIS);
 
 			// terminate if we exceed MaxDepth
 			if (depth + 1 > MaxDepth) break;
 
 			// for now assume a material can only be diffuse or specular or refractive
-			float3 R;
+			float3 wi;
 			if (hit.hasBSDF) {
-				T *= SampleMicrofacet(hit, scene, &R);
-				isSpecular = false;
-			}
-			else if (!isblack(hit.diffuse)) {
-				T *= SampleIndirectLight(hit, scene, &R);
+					T *= SampleMicrofacet(hit, scene, &wi);
 				isSpecular = false;
 			}
 
@@ -95,7 +168,7 @@ public:
 			if (RandomFloat() > p) break;
 			T *= 1.f / p; // add the energy we lose by randomly killing paths
 
-			curRay = Ray(hit.p + EPSILON * R, R);
+			curRay = Ray(hit.p + EPSILON * wi, wi);
 			depth++;
 		}
 
@@ -104,68 +177,14 @@ public:
 
 protected:
 
-	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, float3* R) const {
+	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, float3* wi) const {
 		float pdf;
 		float2 u(RandomFloat(), RandomFloat());
-		float3 BRDF = hit.bsdf.Sample_f(hit.wo, R, u, &pdf);
-		if (pdf == 0) return float3(0.f);
-		return BRDF * absdot(hit.shading.n, *R) / pdf;
-	}
-
-	float3 SampleDirectionInHemisphere(const float3& N, float* pdf) const {
-		auto R = CosineWeightedRandomInHemisphere(N);
-		*pdf = dot(N, R) * INVPI;
-		return R;
-	}
-
-	float3 SampleIndirectLight(const SurfaceInteraction& hit, const Scene& scene, float3* R) const {
-		float pdf;
-		*R = SampleDirectionInHemisphere(hit.n, &pdf);
-		// update throughput
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		return BRDF * dot(hit.n, *R) / pdf;
-	}
-
-	float3 IndirectLight(const SurfaceInteraction& hit, const Scene& scene, int depth) const {
-		float pdf;
-		auto R = SampleDirectionInHemisphere(hit.n, &pdf);
-		Ray newRay(hit.p + EPSILON * R, R);
-		// update throughput
-		auto BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		auto Ei = Li(newRay, scene, depth + 1) * dot(hit.n, R); // irradiance
-		return BRDF * Ei / pdf;
-	}
-
-	float3 EstimateDirect(const Scene& scene, const SurfaceInteraction& hit) const {
-		if (isblack(hit.diffuse) && !hit.hasBSDF) return float3(0.f);
-
-		// pick one random light
-		int lights = (int)(scene.lights.size());
-		int lightIdx = clamp((int)(RandomFloat() * lights), 0, lights - 1);
-		const auto& light = scene.lights[lightIdx];
-		float3 S, lightN;
-		if (!light->Sample(hit.p, &S, &lightN)) return false; // light doesn't support sampling
-		float3 toL = S - hit.p;
-		float dist = length(toL);
-		toL /= dist;
-		float cos_o = dot(-toL, lightN);
-		float cos_i = absdot(toL, hit.shading.n);
-		if (cos_i <= 0 || cos_o <= 0) return float3(0.f);
-		// light is not behind surface point, trace shadow ray
-		Ray newRay(hit.p + EPSILON * toL, toL, dist - 2 * EPSILON);
-		SurfaceInteraction tmpHit;
-		if (scene.NearestIntersection(newRay, tmpHit)) return float3(0.f); // occluded light
-		// light is visible, calculate transport
-		float3 BRDF;
-		if (hit.hasBSDF) {
-			BRDF = hit.bsdf.f(hit.wo, toL);
-		}
-		else {
-			BRDF = hit.diffuse * INVPI; // diffuse brdf = albedo / pi
-		}
-		float solidAngle = (cos_o * light->Area()) / (dist * dist);
-		return BRDF * (float)lights * light->L * solidAngle * cos_i;
+		float3 BRDF = hit.bsdf.Sample_f(hit.wo, wi, u, &pdf);
+		if (IsBlack(BRDF) || pdf == 0) return float3(0.f);
+		return BRDF * absdot(hit.shading.n, *wi) / pdf;
 	}
 
 	int MaxDepth;
+	bool MIS;
 };

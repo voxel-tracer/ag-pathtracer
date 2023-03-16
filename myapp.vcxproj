@@ -121,6 +121,7 @@
   </ItemDefinitionGroup>
   <!-- END Custom section -->
   <ItemGroup>
+    <ClCompile Include="lights.cpp" />
     <ClCompile Include="myapp.cpp" />
     <ClCompile Include="reflection.cpp" />
     <ClCompile Include="template\template.cpp">

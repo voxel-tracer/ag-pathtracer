@@ -6,6 +6,7 @@
     </ClCompile>
     <ClCompile Include="myapp.cpp" />
     <ClCompile Include="reflection.cpp" />
+    <ClCompile Include="lights.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="template\common.h">
