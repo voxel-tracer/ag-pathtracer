@@ -164,9 +164,12 @@ public:
 			}
 
 			// Russian roulette
-			float p = clamp(max(T.x, max(T.y, T.z)), EPSILON, 1.f);
-			if (RandomFloat() > p) break;
-			T *= 1.f / p; // add the energy we lose by randomly killing paths
+			float maxComponent = max(T.x, max(T.y, T.z));
+			if (maxComponent < 1 && depth > 3) {
+				float q = std::max(.05f, 1 - maxComponent);
+				if (RandomFloat() < q) break;
+				T /= 1 - q;
+			}
 
 			curRay = Ray(hit.p + EPSILON * wi, wi);
 			depth++;
