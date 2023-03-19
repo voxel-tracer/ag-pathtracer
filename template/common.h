@@ -30,6 +30,14 @@ inline float3 rgb2lin(float3 c) {
 	return { pow(c.x, 2.2f), pow(c.y, 2.2f),pow(c.z, 2.2f) };
 }
 
+inline float3 hex2lin(int hexValue) {
+	float3 rgb;
+	rgb.x = ((hexValue >> 16) & 0xFF) / 255.f;
+	rgb.y = ((hexValue >> 8) & 0xFF) / 255.f;
+	rgb.z = (hexValue & 0xFF) / 255.f;
+	return rgb2lin(rgb);
+}
+
 inline float3 lin2rgb(float3 c) {
 	float e = 1 / 2.2f;
 	return { pow(c.x, e), pow(c.y, e),pow(c.z, e) };

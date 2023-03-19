@@ -55,16 +55,54 @@ shared_ptr<Scene> SimpleTestScene() {
 
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
-	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .5f, 0.f);
-	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.1f, 0.f);
+	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
+	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.25f, 0.f);
+	auto aluminum = Material::make_disney((float3(0.912, 0.914, 0.920)), 0.25f, 0.f);
+	auto bone = Material::make_disney((float3(0.793, 0.793, 0.664)), 0.25f, 0.f);
+	auto brass = Material::make_disney((float3(0.887, 0.789, 0.434)), 0.25f, 0.f);
+	auto brick = Material::make_disney((float3(0.262, 0.095, 0.061)), 0.25f, 0.f);
+	auto charcoal = Material::make_disney((float3(0.020, 0.020, 0.020)), 0.25f, 0.f);
+	auto chocolate = Material::make_disney((float3(0.162, 0.091, 0.060)), 0.25f, 0.f);
+	auto chromium = Material::make_disney((float3(0.550, 0.556, 0.554)), 0.25f, 0.f);
+
+	auto cute0 = Material::make_disney(hex2lin(0xf19a91), .25f, 0.f);
+	auto cute1 = Material::make_disney(hex2lin(0xedd0ca), .25f, 0.f);
+	auto cute2 = Material::make_disney(hex2lin(0xf3b8a8), .25f, 0.f);
+	auto cute3 = Material::make_disney(hex2lin(0xf9ece6), .25f, 0.f);
+	auto cute4 = Material::make_disney(hex2lin(0xf6e7d0), .25f, 0.f);
+	auto cute5 = Material::make_disney(hex2lin(0xf5deac), .25f, 0.f);
+	auto cute6 = Material::make_disney(hex2lin(0xeecf74), .25f, 0.f);
+	auto cute7 = Material::make_disney(hex2lin(0x9ed5d8), .25f, 0.f);
+	auto cute8 = Material::make_disney(hex2lin(0x9ba6ac), .25f, 0.f);
+	auto cute9 = Material::make_disney(hex2lin(0xaebdc4), .25f, 0.f);
+	auto cute10 = Material::make_disney(hex2lin(0xb9ddf3), .25f, 0.f);
+	auto cute11 = Material::make_disney(hex2lin(0x87abc5), .25f, 0.f);
+	auto cute12 = Material::make_disney(hex2lin(0xcbceb1), .25f, 0.f);
+	auto cute13 = Material::make_disney(hex2lin(0xf7f7f7), .25f, 0.f);
+	auto cute14 = Material::make_disney(hex2lin(0xc4ac64), .25f, 0.f);
+	auto cute15 = Material::make_disney(hex2lin(0xe2f4f6), .25f, 0.f);
+	auto cute16 = Material::make_disney(hex2lin(0xd2e4e6), .25f, 0.f);
+	auto cute17 = Material::make_disney(hex2lin(0xbfdcda), .25f, 0.f);
+	auto cute18 = Material::make_disney(hex2lin(0x69bab3), .25f, 0.f);
+	auto cute19 = Material::make_disney(hex2lin(0x88cabc), .25f, 0.f);
+	auto cute20 = Material::make_disney(hex2lin(0xcdd1d4), .25f, 0.f);
+	auto cute21 = Material::make_disney(hex2lin(0xe6e5ea), .25f, 0.f);
+	auto cute22 = Material::make_disney(hex2lin(0x33455b), .25f, 0.f);
+	auto cute23 = Material::make_disney(hex2lin(0x5b6268), .25f, 0.f);
+	auto cute24 = Material::make_disney(hex2lin(0x778592), .25f, 0.f);
+	auto cute25 = Material::make_disney(hex2lin(0xe57a82), .25f, 0.f);
+	auto cute26 = Material::make_disney(hex2lin(0xcd7d88), .25f, 0.f);
+	auto cute27 = Material::make_disney(hex2lin(0xe3a3b1), .25f, 0.f);
+	auto cute28 = Material::make_disney(hex2lin(0xf0d1e3), .25f, 0.f);
+	auto cute = Material::make_disney(hex2lin(0xc5b5d2), .25f, 0.f);
 
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, gold));
+	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, cute));
 
 	// add an emitting sphere
-	auto lightE = float3(523, 342, 342);
+	auto lightE = float3(1, .941, .914) * 500;
 	auto lightMat = Material::make_emitter(lightE);
 	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
 
@@ -80,7 +118,7 @@ shared_ptr<Scene> SimpleTestScene() {
 	//camera.aperture = .1f;
 
 	auto scene = make_shared<Scene>(primitives, camera);
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .5));
 	scene->lights.push_back(lightarea);
 
 	return scene;
