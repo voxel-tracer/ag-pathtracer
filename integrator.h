@@ -124,6 +124,19 @@ inline float3 UniformSampleOneLight(const SurfaceInteraction& si, const Scene& s
 	return EstimateDirect(si, uScattering, *light, uLight, scene, MIS) / lightPdf;
 }
 
+class DbgIntegrator : public Integrator {
+public:
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const override {
+		SurfaceInteraction si;
+		if (scene.NearestIntersection(ray, si)) {
+			if (si.uv.x == 0 || si.uv.y == 0)
+				return float3(1, 0, 0);
+			return (float3(si.uv.x, si.uv.y, 0)) / 5;
+		}
+		return float3(0.f);
+	}
+};
+
 class PathTracer : public Integrator {
 public:
 	PathTracer(int maxDepth = 5, bool MIS = true) : MaxDepth(maxDepth), MIS(MIS) {}

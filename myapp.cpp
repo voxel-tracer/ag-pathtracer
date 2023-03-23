@@ -136,7 +136,7 @@ void MyApp::Init()
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	integratorR = make_shared<PathTracer>();
-	integratorL = make_shared<PathTracer>();
+	integratorL = make_shared<DbgIntegrator>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	int2 scrPos((SCRWIDTH - MinScrSize) / 2, (SCRHEIGHT - MinScrSize) / 2);
