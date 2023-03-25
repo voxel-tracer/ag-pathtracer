@@ -2,6 +2,7 @@
 #include "disney.h"
 #include "integrator.h"
 #include "bvhtrimesh.h"
+#include "texture.h"
 #include "myapp.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -9,16 +10,16 @@
 #include "tiny_obj_loader.h"
 
 shared_ptr<Scene> BunnyScene() {
-	auto red = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
-	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.2f, 1.f);
-	auto floor = Material::make_disney(float3(.8f), .5f, 0.f);
+	auto red = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
+	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.2f, 1.f);
+	auto floor = DisneyMaterial::Make(float3(.8f), .5f, 0.f);
 
 	vector<shared_ptr<Intersectable>> primitives;
 	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, -1, 0) * mat4::RotateY(radians(60));
 	
 	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", red, transform);
-	primitives.push_back(make_shared<BVHTriMesh>(trimesh, 1));
+	primitives.push_back(make_shared<BVHTriMesh>(trimesh, red, 1));
 
 	CameraDesc camera;
 	camera.lookfrom = float3(3, 1.5f, 4);
@@ -30,10 +31,8 @@ shared_ptr<Scene> BunnyScene() {
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
-	auto lightMat = Material::make_emitter(lightE);
-	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat); // TODO: find a way to set the arealight on this shape
+	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, nullptr);
 	auto arealight = make_shared<AreaLight>(light, lightE);
-	light->SetAreaLight(arealight);
 
 	primitives.push_back(light);
 
@@ -45,56 +44,56 @@ shared_ptr<Scene> BunnyScene() {
 }
 
 shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const float3 color, float roughness) {
-	shared_ptr<Material> mat = Material::make_disney(color, roughness, 0.f);
+	shared_ptr<Material> mat = DisneyMaterial::Make(color, roughness, 0.f);
 	return make_shared<Sphere>(center, radius, mat);
 }
 
 // Keep this as it matches PBRT's simple.pbrt
 shared_ptr<Scene> SimpleTestScene() {
-	auto floor = Material::make_disney(float3(.8f), 1.f, 0.f);
+	auto floor = DisneyMaterial::Make(float3(.8f), 1.f, 0.f);
 
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
-	auto disneyDielectric = Material::make_disney(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
-	auto gold = Material::make_disney((float3(0.944f, 0.776f, 0.373f)), 0.25f, 0.f);
-	auto aluminum = Material::make_disney((float3(0.912, 0.914, 0.920)), 0.25f, 0.f);
-	auto bone = Material::make_disney((float3(0.793, 0.793, 0.664)), 0.25f, 0.f);
-	auto brass = Material::make_disney((float3(0.887, 0.789, 0.434)), 0.25f, 0.f);
-	auto brick = Material::make_disney((float3(0.262, 0.095, 0.061)), 0.25f, 0.f);
-	auto charcoal = Material::make_disney((float3(0.020, 0.020, 0.020)), 0.25f, 0.f);
-	auto chocolate = Material::make_disney((float3(0.162, 0.091, 0.060)), 0.25f, 0.f);
-	auto chromium = Material::make_disney((float3(0.550, 0.556, 0.554)), 0.25f, 0.f);
+	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
+	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.25f, 0.f);
+	auto aluminum = DisneyMaterial::Make((float3(0.912, 0.914, 0.920)), 0.25f, 0.f);
+	auto bone = DisneyMaterial::Make((float3(0.793, 0.793, 0.664)), 0.25f, 0.f);
+	auto brass = DisneyMaterial::Make((float3(0.887, 0.789, 0.434)), 0.25f, 0.f);
+	auto brick = DisneyMaterial::Make((float3(0.262, 0.095, 0.061)), 0.25f, 0.f);
+	auto charcoal = DisneyMaterial::Make((float3(0.020, 0.020, 0.020)), 0.25f, 0.f);
+	auto chocolate = DisneyMaterial::Make((float3(0.162, 0.091, 0.060)), 0.25f, 0.f);
+	auto chromium = DisneyMaterial::Make((float3(0.550, 0.556, 0.554)), 0.25f, 0.f);
 
-	auto cute0 = Material::make_disney(hex2lin(0xf19a91), .25f, 0.f);
-	auto cute1 = Material::make_disney(hex2lin(0xedd0ca), .25f, 0.f);
-	auto cute2 = Material::make_disney(hex2lin(0xf3b8a8), .25f, 0.f);
-	auto cute3 = Material::make_disney(hex2lin(0xf9ece6), .25f, 0.f);
-	auto cute4 = Material::make_disney(hex2lin(0xf6e7d0), .25f, 0.f);
-	auto cute5 = Material::make_disney(hex2lin(0xf5deac), .25f, 0.f);
-	auto cute6 = Material::make_disney(hex2lin(0xeecf74), .25f, 0.f);
-	auto cute7 = Material::make_disney(hex2lin(0x9ed5d8), .25f, 0.f);
-	auto cute8 = Material::make_disney(hex2lin(0x9ba6ac), .25f, 0.f);
-	auto cute9 = Material::make_disney(hex2lin(0xaebdc4), .25f, 0.f);
-	auto cute10 = Material::make_disney(hex2lin(0xb9ddf3), .25f, 0.f);
-	auto cute11 = Material::make_disney(hex2lin(0x87abc5), .25f, 0.f);
-	auto cute12 = Material::make_disney(hex2lin(0xcbceb1), .25f, 0.f);
-	auto cute13 = Material::make_disney(hex2lin(0xf7f7f7), .25f, 0.f);
-	auto cute14 = Material::make_disney(hex2lin(0xc4ac64), .25f, 0.f);
-	auto cute15 = Material::make_disney(hex2lin(0xe2f4f6), .25f, 0.f);
-	auto cute16 = Material::make_disney(hex2lin(0xd2e4e6), .25f, 0.f);
-	auto cute17 = Material::make_disney(hex2lin(0xbfdcda), .25f, 0.f);
-	auto cute18 = Material::make_disney(hex2lin(0x69bab3), .25f, 0.f);
-	auto cute19 = Material::make_disney(hex2lin(0x88cabc), .25f, 0.f);
-	auto cute20 = Material::make_disney(hex2lin(0xcdd1d4), .25f, 0.f);
-	auto cute21 = Material::make_disney(hex2lin(0xe6e5ea), .25f, 0.f);
-	auto cute22 = Material::make_disney(hex2lin(0x33455b), .25f, 0.f);
-	auto cute23 = Material::make_disney(hex2lin(0x5b6268), .25f, 0.f);
-	auto cute24 = Material::make_disney(hex2lin(0x778592), .25f, 0.f);
-	auto cute25 = Material::make_disney(hex2lin(0xe57a82), .25f, 0.f);
-	auto cute26 = Material::make_disney(hex2lin(0xcd7d88), .25f, 0.f);
-	auto cute27 = Material::make_disney(hex2lin(0xe3a3b1), .25f, 0.f);
-	auto cute28 = Material::make_disney(hex2lin(0xf0d1e3), .25f, 0.f);
-	auto cute = Material::make_disney(hex2lin(0xc5b5d2), .25f, 0.f);
+	auto cute0 = DisneyMaterial::Make(hex2lin(0xf19a91), .25f, 0.f);
+	auto cute1 = DisneyMaterial::Make(hex2lin(0xedd0ca), .25f, 0.f);
+	auto cute2 = DisneyMaterial::Make(hex2lin(0xf3b8a8), .25f, 0.f);
+	auto cute3 = DisneyMaterial::Make(hex2lin(0xf9ece6), .25f, 0.f);
+	auto cute4 = DisneyMaterial::Make(hex2lin(0xf6e7d0), .25f, 0.f);
+	auto cute5 = DisneyMaterial::Make(hex2lin(0xf5deac), .25f, 0.f);
+	auto cute6 = DisneyMaterial::Make(hex2lin(0xeecf74), .25f, 0.f);
+	auto cute7 = DisneyMaterial::Make(hex2lin(0x9ed5d8), .25f, 0.f);
+	auto cute8 = DisneyMaterial::Make(hex2lin(0x9ba6ac), .25f, 0.f);
+	auto cute9 = DisneyMaterial::Make(hex2lin(0xaebdc4), .25f, 0.f);
+	auto cute10 = DisneyMaterial::Make(hex2lin(0xb9ddf3), .25f, 0.f);
+	auto cute11 = DisneyMaterial::Make(hex2lin(0x87abc5), .25f, 0.f);
+	auto cute12 = DisneyMaterial::Make(hex2lin(0xcbceb1), .25f, 0.f);
+	auto cute13 = DisneyMaterial::Make(hex2lin(0xf7f7f7), .25f, 0.f);
+	auto cute14 = DisneyMaterial::Make(hex2lin(0xc4ac64), .25f, 0.f);
+	auto cute15 = DisneyMaterial::Make(hex2lin(0xe2f4f6), .25f, 0.f);
+	auto cute16 = DisneyMaterial::Make(hex2lin(0xd2e4e6), .25f, 0.f);
+	auto cute17 = DisneyMaterial::Make(hex2lin(0xbfdcda), .25f, 0.f);
+	auto cute18 = DisneyMaterial::Make(hex2lin(0x69bab3), .25f, 0.f);
+	auto cute19 = DisneyMaterial::Make(hex2lin(0x88cabc), .25f, 0.f);
+	auto cute20 = DisneyMaterial::Make(hex2lin(0xcdd1d4), .25f, 0.f);
+	auto cute21 = DisneyMaterial::Make(hex2lin(0xe6e5ea), .25f, 0.f);
+	auto cute22 = DisneyMaterial::Make(hex2lin(0x33455b), .25f, 0.f);
+	auto cute23 = DisneyMaterial::Make(hex2lin(0x5b6268), .25f, 0.f);
+	auto cute24 = DisneyMaterial::Make(hex2lin(0x778592), .25f, 0.f);
+	auto cute25 = DisneyMaterial::Make(hex2lin(0xe57a82), .25f, 0.f);
+	auto cute26 = DisneyMaterial::Make(hex2lin(0xcd7d88), .25f, 0.f);
+	auto cute27 = DisneyMaterial::Make(hex2lin(0xe3a3b1), .25f, 0.f);
+	auto cute28 = DisneyMaterial::Make(hex2lin(0xf0d1e3), .25f, 0.f);
+	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), .25f, 0.f);
 
 
 	vector<shared_ptr<Intersectable>> primitives;
@@ -103,11 +102,9 @@ shared_ptr<Scene> SimpleTestScene() {
 
 	// add an emitting sphere
 	auto lightE = float3(1, .941, .914) * 500;
-	auto lightMat = Material::make_emitter(lightE);
-	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, lightMat);
+	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, nullptr);
 
 	auto lightarea = make_shared<AreaLight>(light, lightE);
-	light->SetAreaLight(lightarea);
 	primitives.push_back(light);
 
 	CameraDesc camera;
@@ -136,7 +133,7 @@ void MyApp::Init()
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	integratorR = make_shared<PathTracer>();
-	integratorL = make_shared<DbgIntegrator>();
+	integratorL = integratorR; // make_shared<DbgIntegrator>();
 
 	const int MinScrSize = min(SCRWIDTH, SCRHEIGHT);
 	int2 scrPos((SCRWIDTH - MinScrSize) / 2, (SCRHEIGHT - MinScrSize) / 2);
@@ -197,6 +194,11 @@ void MyApp::Tick( float deltaTime )
 	if (paused && accumulator->IsInside(mousePos.x, mousePos.y)) {
 		auto fc = accumulator->WindowToFilm(mousePos);
 		Ray ray = camera->GetRay(fc.x, fc.y);
+
+		if (leftMouseBtnDown) {
+			integratorL->Li(ray, *scene);
+		}
+
 		SurfaceInteraction hit;
 		if (scene->NearestIntersection(ray, hit)) {
 			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.p));

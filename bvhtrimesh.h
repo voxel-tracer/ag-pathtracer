@@ -151,7 +151,7 @@ struct BucketInfo {
 
 class BVHTriMesh : public TriangleMesh {
 public:
-    BVHTriMesh(shared_ptr<TriangleMesh> trimesh, int maxPrimsInNode = 1) : TriangleMesh(trimesh) {
+    BVHTriMesh(shared_ptr<TriangleMesh> trimesh, std::shared_ptr<Material> mat, int maxPrimsInNode = 1) : TriangleMesh(trimesh, mat) {
         // generate primitives vector from mesh indices/vertices
         for (auto i = 0; i < indices.size(); i += 3) {
             primitives.push_back(Primitive(

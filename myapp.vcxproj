@@ -121,6 +121,7 @@
   </ItemDefinitionGroup>
   <!-- END Custom section -->
   <ItemGroup>
+    <ClCompile Include="Intersectable.cpp" />
     <ClCompile Include="lights.cpp" />
     <ClCompile Include="myapp.cpp" />
     <ClCompile Include="reflection.cpp" />
@@ -145,6 +146,7 @@
     <ClInclude Include="rendertimer.h" />
     <ClInclude Include="template\common.h" />
     <ClInclude Include="template\precomp.h" />
+    <ClInclude Include="texture.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="trianglemesh.h" />
     <ClInclude Include="integrator.h" />

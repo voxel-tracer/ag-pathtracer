@@ -7,6 +7,7 @@
     <ClCompile Include="myapp.cpp" />
     <ClCompile Include="reflection.cpp" />
     <ClCompile Include="lights.cpp" />
+    <ClCompile Include="Intersectable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="template\common.h">
@@ -31,6 +32,7 @@
     <ClInclude Include="microfacet.h" />
     <ClInclude Include="reflection.h" />
     <ClInclude Include="disney.h" />
+    <ClInclude Include="texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">

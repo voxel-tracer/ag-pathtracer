@@ -16,7 +16,7 @@ struct Interaction {
 
 class Intersectable {
 public:
-	Intersectable(shared_ptr<Material> material) : material(material) {}
+	Intersectable(shared_ptr<Material> material) : material(material), arealight(nullptr) {}
 
 	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const = 0;
 
@@ -41,16 +41,21 @@ public:
 		return 0.f;
 	}
 
-	AreaLight* GetAreaLight() const {
-		return arealight.get();
+	const AreaLight* GetAreaLight() const {
+		return arealight;
 	}
 
-	void SetAreaLight(shared_ptr<AreaLight> light) {
+	void SetAreaLight(const AreaLight *light) {
 		arealight = light;
 	}
 
+	const Material* GetMaterial() const {
+		return material.get();
+	}
+
+private:
 	std::shared_ptr<Material> material;
-	std::shared_ptr<AreaLight> arealight;
+	const AreaLight* arealight;
 };
 
 class SurfaceInteraction {
@@ -81,25 +86,14 @@ public:
 		dpdv = dpdvs;
 	}
 
-	void EvalMaterial() {
-		Material* mat = shape->material.get();
-
-		if (mat->disney) {
-			bsdf = BSDF(*this);
-			if (mat->disney->diffuse)
-				bsdf.AddBxDF(mat->disney->diffuse.get());
-			if (mat->disney->retro)
-				bsdf.AddBxDF(mat->disney->retro.get());
-			if (mat->disney->microfacet)
-				bsdf.AddBxDF(mat->disney->microfacet.get());
-			hasBSDF = true;
-		}
-		else {
-			hasBSDF = false;
-		}
-
-		emission = mat->emission;
+	bool EvalMaterial() {
+		if (!shape->GetMaterial()) return false;
+		bsdf = BSDF(*this);
+		shape->GetMaterial()->SetupBSDF(&bsdf);
+		return true;
 	}
+
+	float3 Le(const float3& w) const;
 
 	// Interaction public data
 	float3 p; // intersection point
@@ -116,8 +110,6 @@ public:
 	} shading;
 
 	BSDF bsdf;
-	bool hasBSDF;
-	float3 emission;
 };
 
 // Simple XZ plane with normal = Y

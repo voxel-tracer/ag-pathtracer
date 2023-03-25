@@ -50,7 +50,9 @@ public:
 
 class AreaLight : public Light {
 public:
-    AreaLight(shared_ptr<Intersectable> shape, const float3& l) : Light(l), Shape(shape) {}
+    AreaLight(shared_ptr<Intersectable> shape, const float3& l) : Light(l), Shape(shape) {
+        shape->SetAreaLight(this);
+    }
 
     virtual float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const override;
 

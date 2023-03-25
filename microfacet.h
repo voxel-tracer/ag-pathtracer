@@ -226,3 +226,8 @@ public:
 private:
     float etaI, etaT;
 };
+
+class FresnelNoOp : public Fresnel {
+public:
+    float3 Evaluate(float cosThetaI) const { return float3(1); }
+};

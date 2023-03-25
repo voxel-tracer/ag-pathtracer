@@ -2,52 +2,15 @@
 
 #include "disney.h"
 
-class Texture {
+
+class Material {
 public:
-	virtual float3 value(float u, float v) const = 0;
-};
-
-class SolidColor : public Texture {
-public:
-	SolidColor(float a) : SolidColor(a, a, a) {}
-	SolidColor(float r, float g, float b) : SolidColor(float3(r, g, b)) {}
-	SolidColor(float3 c) : color(c) {}
-
-	virtual float3 value(float u, float v) const override {
-		return color;
-	}
-
-	static shared_ptr<SolidColor> make(float3 v) {
-		return make_shared<SolidColor>(v);
-	}
-
-private:
-	float3 color;
-};
-
-class CheckerTexture : public Texture {
-public:
-	CheckerTexture(shared_ptr<Texture> c1, shared_ptr<Texture> c2) : color1(c1), color2(c2) {}
-
-	virtual float3 value(float u, float v) const override {
-		if (((int)(u * 8) + (int)(v * 8)) % 2)
-			return color1->value(u, v);
-		return color2->value(u, v);
-	}
-
-private:
-	shared_ptr<Texture> color1;
-	shared_ptr<Texture> color2;
+	virtual void SetupBSDF(BSDF* bsdf) const = 0;
 };
 
 // Only support diffuse reflection for now
-struct DisneyMaterial {
-	float eta = 1.5f;
-
-	shared_ptr<DisneyDiffuse> diffuse;
-	shared_ptr<DisneyRetro> retro;
-	shared_ptr<MicrofacetReflection> microfacet;
-
+class DisneyMaterial : public Material {
+public:
 	DisneyMaterial(const float3& color, float roughness, float metallic) {
 		// Diffuse
 		float3 c = color;
@@ -84,23 +47,42 @@ struct DisneyMaterial {
 		Fresnel* fresnel = new DisneyFresnel(Cspec0, metallicWeight, e);
 		microfacet = make_shared<MicrofacetReflection>(float3(1.), distrib, fresnel);
 	}
+
+	void SetupBSDF(BSDF* bsdf) const {
+		if (diffuse) 
+			bsdf->AddBxDF(diffuse.get());
+		if (retro) 
+			bsdf->AddBxDF(retro.get());
+		if (microfacet) 
+			bsdf->AddBxDF(microfacet.get());
+	}
+
+	static std::shared_ptr<DisneyMaterial> Make(const float3& color, float roughness, float metallic) {
+		return std::make_shared<DisneyMaterial>(color, roughness, metallic);
+	}
+
+private:
+	float eta = 1.5f;
+
+	shared_ptr<DisneyDiffuse> diffuse;
+	shared_ptr<DisneyRetro> retro;
+	shared_ptr<MicrofacetReflection> microfacet;
 };
 
-class Material {
+class MirrorMaterial : public Material {
 public:
-	float ref_idx = 1.f;				// reflection index
-	shared_ptr<DisneyMaterial> disney;
-	float3 emission = float3(0.f);
-
-	static shared_ptr<Material> make_emitter(const float3 e) {
-		auto mat = make_shared <Material>();
-		mat->emission = e;
-		return mat;
+	MirrorMaterial(const float3& r) {
+		Fresnel* fresnel = new FresnelNoOp();
+		reflection = std::make_shared<SpecularReflection>(r, fresnel);
 	}
 
-	static shared_ptr<Material> make_disney(const float3& color, float roughness, float metallic) {
-		auto mat = make_shared<Material>();
-		mat->disney = make_shared<DisneyMaterial>(color, roughness, metallic);
-		return mat;
+	void SetupBSDF(BSDF* bsdf) const {
+		bsdf->AddBxDF(reflection.get());
 	}
+
+	static std::shared_ptr<MirrorMaterial> Make(const float3& r) {
+		return std::make_shared<MirrorMaterial>(r);
+	}
+private:
+	std::shared_ptr<SpecularReflection> reflection;
 };

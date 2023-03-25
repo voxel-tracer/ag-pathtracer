@@ -46,7 +46,7 @@ inline float FresnelSchlick(float etaI, float etaT, float cos_thetaI) {
 
 class Integrator {
 public:
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const = 0;
+	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const = 0;
 };
 
 inline float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
@@ -54,7 +54,7 @@ inline float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
 	return (f * f) / (f * f + g * g);
 }
 
-inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScattering, const Light& light, const float2& uLight, const Scene& scene, bool MIS = false) {
+inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScattering, const Light& light, const float2& uLight, const Scene& scene) {
 	float3 Ld(0.f);
 	float3 wi;
 	float lightPdf = 0, scatteringPdf = 0;
@@ -62,8 +62,8 @@ inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScatte
 	float3 Li = light.Sample_Li(si, uLight, &wi, &lightPdf, &visibility);
 	if (lightPdf > 0 && !IsBlack(Li)) {
 		// Evaluate BSDF for light sampling strategy
-		float3 f = si.bsdf.f(si.wo, wi) * absdot(wi, si.shading.n);
-		scatteringPdf = si.bsdf.Pdf(si.wo, wi);
+		float3 f = si.bsdf.f(si.wo, wi, true) * absdot(wi, si.shading.n);
+		scatteringPdf = si.bsdf.Pdf(si.wo, wi, true);
 		if (!IsBlack(f)) {
 			// Compute effect of visibility for light source sample
 			if (!visibility.Unoccluded(scene))
@@ -79,11 +79,10 @@ inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScatte
 	}
 
 	// Sample BSDF with multiple importance sampling
-	if (MIS)
 	{
 		float3 f;
 		// Sample scattered direction
-		f = si.bsdf.Sample_f(si.wo, &wi, uScattering, &scatteringPdf);
+		f = si.bsdf.Sample_f(si.wo, &wi, uScattering, &scatteringPdf, true);
 		f *= absdot(wi, si.shading.n);
 
 		if (!isblack(f) && scatteringPdf > 0) {
@@ -112,7 +111,7 @@ inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScatte
 	return Ld;
 }
 
-inline float3 UniformSampleOneLight(const SurfaceInteraction& si, const Scene& scene, bool MIS = false) {
+inline float3 UniformSampleOneLight(const SurfaceInteraction& si, const Scene& scene) {
 	// Randomly choose a single light to sample, _light_
 	int nLights = int(scene.lights.size());
 	if (nLights == 0) return float3(0.f);
@@ -121,12 +120,12 @@ inline float3 UniformSampleOneLight(const SurfaceInteraction& si, const Scene& s
 	const std::shared_ptr<Light>& light = scene.lights[numLight];
 	float2 uLight(RandomFloat(), RandomFloat());
 	float2 uScattering(RandomFloat(), RandomFloat());
-	return EstimateDirect(si, uScattering, *light, uLight, scene, MIS) / lightPdf;
+	return EstimateDirect(si, uScattering, *light, uLight, scene) / lightPdf;
 }
 
 class DbgIntegrator : public Integrator {
 public:
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const override {
+	float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const {
 		SurfaceInteraction si;
 		if (scene.NearestIntersection(ray, si)) {
 			if (si.uv.x == 0 || si.uv.y == 0)
@@ -139,68 +138,78 @@ public:
 
 class PathTracer : public Integrator {
 public:
-	PathTracer(int maxDepth = 5, bool MIS = true) : MaxDepth(maxDepth), MIS(MIS) {}
+	PathTracer(int maxDepth = 5) : MaxDepth(maxDepth) {}
 
-	virtual float3 Li(const Ray& ray, const Scene& scene, int depth = 0, bool isSpecular = true) const override {
-		float3 T(1.f); // current ray throughput
-		float3 E(0.f);
+	float3 Li(const Ray& r, const Scene& scene, int depth = 0) const {
+		float3 beta(1.f); // current ray throughput
+		float3 L(0.f);
 
-		Ray curRay = ray;
-		while (true) {
-			SurfaceInteraction hit;
-			if (!scene.NearestIntersection(curRay, hit)) {
-				// Ray left the scene, handle infinite lights
-				if (isSpecular)
-					for (const auto& light : scene.lights) 
-						E += T * light->Le(curRay);
-				break;
+		Ray ray = r;
+		bool specularBounce = false;
+		int bounces;
+
+		for (bounces = 0;; bounces++) {
+
+			// Intersect _ray_ with scene and store intersection in _isect_
+			SurfaceInteraction isect;
+			bool foundIntersection = scene.NearestIntersection(ray, isect);
+
+			// Possibly add emitted light at intersection
+			if (bounces == 0 || specularBounce) {
+				// Add emitted light at path vertex or from the environment
+				if (foundIntersection) {
+					L += beta * isect.Le(-ray.D);
+				} else {
+					for (const auto& light : scene.lights)
+						L += beta * light->Le(ray);
+				}
 			}
 
-			hit.EvalMaterial();
+			// Terminate ray if ray escaped or _maxDepth_ reached
+			if (!foundIntersection || bounces >= MaxDepth) break;
 
-			// terminate if we hit a light source
-			if (!isblack(hit.emission)) {
-				if (isSpecular) E += T * hit.emission;
-				break;
+			if (!isect.EvalMaterial()) {
+				// Skip intersection due to null BSDF (most likely we hit a light source)
+				// It basically ignores the intersection all together
+				
+				// IMPORTANT: because I don't handle single sided area lights, when a specular ray hits a sphere it may collect energy from both
+				// sides of the sphere which is not something we want
+				ray = Ray(isect.p + EPSILON * ray.D, ray.D);
+				bounces--;
+				continue;
 			}
 
-			E += T * UniformSampleOneLight(hit, scene, MIS);
-
-			// terminate if we exceed MaxDepth
-			if (depth + 1 > MaxDepth) break;
-
-			// for now assume a material can only be diffuse or specular or refractive
-			float3 wi;
-			if (hit.hasBSDF) {
-					T *= SampleMicrofacet(hit, scene, &wi);
-				isSpecular = false;
+			// Sample illumination from lights to find path contribution.
+			// (But skip for perfectly specular BSDFs).
+			if (!isect.bsdf.IsPerfectlySpecular()) {
+				L += beta * UniformSampleOneLight(isect, scene);
 			}
+
+			// Sample BSDF to get new path direction
+			float3 wo = -ray.D, wi;
+			float2 u(RandomFloat(), RandomFloat());
+			float pdf;
+			bool sampledSpecular = false;
+			float3 f = isect.bsdf.Sample_f(wo, &wi, u, &pdf, false, &sampledSpecular);
+			if (IsBlack(f) || pdf == 0) break;
+			beta *= f * absdot(wi, isect.shading.n) / pdf;
+			specularBounce = sampledSpecular;
 
 			// Russian roulette
-			float maxComponent = max(T.x, max(T.y, T.z));
+			float maxComponent = max(beta.x, max(beta.y, beta.z));
 			if (maxComponent < 1 && depth > 3) {
 				float q = std::max(.05f, 1 - maxComponent);
 				if (RandomFloat() < q) break;
-				T /= 1 - q;
+				beta /= 1 - q;
 			}
 
-			curRay = Ray(hit.p + EPSILON * wi, wi);
-			depth++;
+			ray = Ray(isect.p + EPSILON * wi, wi);
 		}
 
-		return E;
+		return L;
 	}
 
 protected:
 
-	float3 SampleMicrofacet(const SurfaceInteraction& hit, const Scene& scene, float3* wi) const {
-		float pdf;
-		float2 u(RandomFloat(), RandomFloat());
-		float3 BRDF = hit.bsdf.Sample_f(hit.wo, wi, u, &pdf);
-		if (IsBlack(BRDF) || pdf == 0) return float3(0.f);
-		return BRDF * absdot(hit.shading.n, *wi) / pdf;
-	}
-
 	int MaxDepth;
-	bool MIS;
 };

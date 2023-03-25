@@ -19,8 +19,8 @@ public:
         vertices(std::move(vertices)), 
         normals(std::move(normals)), 
         texcoords(std::move(texcoords)) {}
-    TriangleMesh(shared_ptr<TriangleMesh> trimesh) : 
-        TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, trimesh->material) {};
+    TriangleMesh(shared_ptr<TriangleMesh> trimesh, shared_ptr<Material> mat) : 
+        TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, mat) {};
 
     virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
         bool hit_anything = false;
