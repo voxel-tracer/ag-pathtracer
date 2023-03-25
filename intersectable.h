@@ -182,7 +182,7 @@ public:
 		float u = phi * INV2PI;
 
 		float theta = std::acos(clamp(pHit.z / r, -1.f, 1.f));
-		float v = (theta + PI * .5f) * INVPI;
+		float v = theta * INVPI;
 
 		float zRadius = sqrt(pHit.x * pHit.x + pHit.y * pHit.y);
 		float invZRadius = 1 / zRadius;
