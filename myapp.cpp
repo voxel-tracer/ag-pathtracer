@@ -50,8 +50,6 @@ shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const f
 
 // Keep this as it matches PBRT's simple.pbrt
 shared_ptr<Scene> SimpleTestScene() {
-	auto floor = DisneyMaterial::Make(float3(.8f), 1.f, 0.f);
-
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
 	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
@@ -97,22 +95,26 @@ shared_ptr<Scene> SimpleTestScene() {
 
 
 	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	primitives.push_back(make_shared<Sphere>(float3(0.f), 1.f, cute));
+	auto floor = DisneyMaterial::Make(hex2lin(0xcbceb1), 1.f, 0.f);
+	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 10), float3(20), 7.5, 32, floor);
+	primitives.push_back(make_shared<BVHTriMesh>(backdrop, floor, 1));
+
+	primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, cute));
+	//primitives.push_back(make_shared<Sphere>(float3(0, 0, -10), 2.f, cute20));
 
 	// add an emitting sphere
-	auto lightE = float3(1, .941, .914) * 500;
-	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, nullptr);
+	auto lightE = float3(1, .941, .914) * 200;
+	auto light = make_shared<Sphere>(float3(20, 100, -20), 5.f, nullptr);
 
 	auto lightarea = make_shared<AreaLight>(light, lightE);
 	primitives.push_back(light);
 
 	CameraDesc camera;
-	camera.lookfrom = float3(3.f, 1.5f, 4.f);
-	camera.lookat = float3(0.5, 0, 0.5);
+	camera.lookfrom = float3(1.24, 0.1, -4.84);
+	camera.lookat = float3(0, 0, 0);
 	camera.vup = float3(0, 1, 0);
 	camera.aspect_ratio = 1;
-	//camera.aperture = .1f;
+	camera.aperture = .1f;
 
 	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .5));
@@ -146,11 +148,15 @@ void MyApp::Init()
 // -----------------------------------------------------------
 void MyApp::Tick( float deltaTime )
 {
+	bool reportStats = true;
 	// rotate camera if mouse moved since last tick
 	if (!paused && (mouseDiff.x != 0 || mouseDiff.y != 0)) {
 		float rotation_speed = 0.005f;
 		camera->update(float2(-mouseDiff.y * rotation_speed, -mouseDiff.x * rotation_speed));
 		accumulator->Clear();
+
+		std::cerr << "camera.origin = " << camera->GetOrigin() << std::endl;
+		reportStats = false;
 	}
 	mouseDiff = int2(0); // reset mouse diff
 
@@ -176,7 +182,7 @@ void MyApp::Tick( float deltaTime )
 			}
 		}
 
-		if (timer.stop()) {
+		if (timer.stop() && reportStats) {
 			auto stats = timer.getStatsAndReset();
 			printf("Frame %d\tRender stats { best = %.2f, avg = %.2f, worst = %.2f }\t\t\r",
 				accumulator->NumSamples(), stats.bestDuration, stats.avgDuration, stats.worstDuration);
@@ -202,10 +208,12 @@ void MyApp::Tick( float deltaTime )
 		SurfaceInteraction hit;
 		if (scene->NearestIntersection(ray, hit)) {
 			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.p));
-			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.shading.n));
-			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdu));
-			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdv));
+			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.shading.n*5));
+			auto g = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.n * 5));
+			auto dpdu = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdu*5));
+			auto dpdv = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.dpdv*5));
 			screen->Line(p.x, p.y, n.x, n.y, 0x0000FF);
+			screen->Line(p.x, p.y, g.x, g.y, 0xFFFF00);
 			screen->Line(p.x, p.y, dpdu.x, dpdu.y, 0xFF0000);
 			screen->Line(p.x, p.y, dpdv.x, dpdv.y, 0x00FF00);
 			screen->Box((int)p.x - 5, (int)p.y - 5, (int)p.x + 5, (int)p.y + 5, 0xFF0000);

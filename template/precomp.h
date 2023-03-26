@@ -716,6 +716,9 @@ inline bool HasNans(const float3& v) { return std::isnan(v.x) || std::isnan(v.y)
 
 inline float Luminance(const float3& v) { return 0.212671f * v.x + 0.715160f * v.y + 0.072169f * v.z; }
 
+
+inline std::ostream& operator<<(std::ostream& out, const float3& v) { return out << v[0] << ' ' << v[1] << ' ' << v[2]; }
+
 inline float sqrLength( const float2& v ) { return dot( v, v ); }
 inline float sqrLength( const float3& v ) { return dot( v, v ); }
 inline float sqrLength( const float4& v ) { return dot( v, v ); }

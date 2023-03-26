@@ -71,6 +71,8 @@ public:
 		return float2(X / (viewport_width * Z) + .5f, Y / (viewport_height * Z) + .5f);
 	}
 
+	float3 GetOrigin() const { return origin; }
+
 protected:
 	void updateCoords(float3 lookfrom) {
 		focus_dist = length(lookat - lookfrom);
