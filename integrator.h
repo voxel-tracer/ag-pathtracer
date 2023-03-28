@@ -4,23 +4,7 @@
 #include "material.h"
 #include "intersectable.h"
 #include "lights.h"
-
-class Scene {
-public:
-	bool NearestIntersection(const Ray& ray, SurfaceInteraction& hit) const {
-		bool found = false;
-		for (auto& primitive : primitives) {
-			if (primitive->Intersect(ray, hit)) {
-				found = true;
-			}
-		}
-		return found;
-	}
-
-	vector<shared_ptr<Intersectable>> primitives;
-	vector<shared_ptr<Light>> lights;
-	CameraDesc camera;
-};
+#include "scene.h"
 
 inline bool refract(const float3& I, const float3& N, float cos_thetaI, float etai_over_etat, float3& T) {
 	// thetaI is the incident angle

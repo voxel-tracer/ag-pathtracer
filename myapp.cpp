@@ -4,6 +4,7 @@
 #include "bvhtrimesh.h"
 #include "texture.h"
 #include "myapp.h"
+#include "scene.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_USE_MAPBOX_EARCUT
@@ -12,35 +13,42 @@
 void BunnyScene(Scene *scene) {
 	auto red = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
 	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.2f, 1.f);
-	auto floor = DisneyMaterial::Make(float3(.8f), .5f, 0.f);
+	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), .25f, 0.f);
 
-	scene->primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
-	mat4 transform = mat4::Translate(0, -1, 0) * mat4::RotateY(radians(60));
-	
-	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", red, transform);
-	scene->primitives.push_back(make_shared<BVHTriMesh>(trimesh, red, 1));
+	auto floor = DisneyMaterial::Make(hex2lin(0xcbceb1), 1.f, 0.f);
+	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 20), float3(40, 20, 40), 7.5, 32, floor);
+	scene->primitives.push_back(make_shared<BVHTriMesh>(backdrop, floor, 1));
 
-	scene->camera.lookfrom = float3(3, 1.5f, 4);
+	mat4 transform = mat4::Translate(.25, -1.05, .5) * mat4::RotateY(radians(180));
+	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", cute, transform);
+	scene->primitives.push_back(make_shared<BVHTriMesh>(trimesh, cute, 1));
+
+	scene->camera.lookfrom = normalize(float3(1.24, 0.1, -4.84)) * 5;
 	scene->camera.lookat = float3(.5f, 0, .5f);
 	scene->camera.vup = float3(0, 1, 0);
 	scene->camera.aspect_ratio = 1;
 	scene->camera.vfov = 30;
 	//scene->camera.aperture = .1f;
 
-	// add an emitting sphere
-	auto lightE = float3(523, 342, 342);
-	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, nullptr);
-	auto arealight = make_shared<AreaLight>(light, lightE);
 
-	scene->primitives.push_back(light);
+	// add area lights
+	// key light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(0, 25, -20), 1.f, nullptr),
+		float3(1, .941, .914) * 200
+	);
+	// fill light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(10, 25, -20), 1.f, nullptr),
+		float3(1, .941, .914) * 50
+	);
+	// back light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(0, 20, 10), 5.f, nullptr),
+		float3(1, .941, .914) * 1
+	);
 
-	scene->lights.push_back(arealight);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-}
-
-shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const float3 color, float roughness) {
-	shared_ptr<Material> mat = DisneyMaterial::Make(color, roughness, 0.f);
-	return make_shared<Sphere>(center, radius, mat);
 }
 
 // Keep this as it matches PBRT's simple.pbrt
@@ -49,7 +57,7 @@ void SimpleTestScene(Scene *scene) {
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
 	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
-	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.25f, 0.f);
+	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.25f, 1.f);
 	auto aluminum = DisneyMaterial::Make((float3(0.912, 0.914, 0.920)), 0.25f, 0.f);
 	auto bone = DisneyMaterial::Make((float3(0.793, 0.793, 0.664)), 0.25f, 0.f);
 	auto brass = DisneyMaterial::Make((float3(0.887, 0.789, 0.434)), 0.25f, 0.f);
@@ -90,26 +98,36 @@ void SimpleTestScene(Scene *scene) {
 	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), .25f, 0.f);
 
 	auto floor = DisneyMaterial::Make(hex2lin(0xcbceb1), 1.f, 0.f);
-	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 10), float3(20), 7.5, 32, floor);
+	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 20), float3(40, 20, 40), 7.5, 32, floor);
 	scene->primitives.push_back(make_shared<BVHTriMesh>(backdrop, floor, 1));
 
-	scene->primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, cute));
+	scene->primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, gold));
 
-	// add an emitting sphere
-	auto lightE = float3(1, .941, .914) * 200;
-	auto light = make_shared<Sphere>(float3(20, 100, -20), 5.f, nullptr);
+	// add area lights
+	// key light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(0, 25, -20), 1.f, nullptr),
+		float3(1, .941, .914) * 200
+	);
+	// fill light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(10, 25, -20), 1.f, nullptr),
+		float3(1, .941, .914) * 50
+	);
+	// back light
+	scene->addAreaLight(
+		make_shared<Sphere>(float3(0, 20, 10), 5.f, nullptr),
+		float3(1, .941, .914) * 1
+	);
 
-	auto lightarea = make_shared<AreaLight>(light, lightE);
-	scene->primitives.push_back(light);
-
-	scene->camera.lookfrom = float3(1.24, 0.1, -4.84);
+	scene->camera.lookfrom = normalize(float3(1.24, 0.1, -4.84))*5;
 	scene->camera.lookat = float3(0, 0, 0);
 	scene->camera.vup = float3(0, 1, 0);
 	scene->camera.aspect_ratio = 1;
 	scene->camera.aperture = .1f;
 
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .5));
-	scene->lights.push_back(lightarea);
+	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .05));
+	//scene->lights.push_back(lightarea);
 }
 
 TheApp* CreateApp() { return new MyApp(); }

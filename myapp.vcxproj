@@ -145,6 +145,7 @@
     <ClInclude Include="myapp.h" />
     <ClInclude Include="reflection.h" />
     <ClInclude Include="rendertimer.h" />
+    <ClInclude Include="scene.h" />
     <ClInclude Include="template\common.h" />
     <ClInclude Include="template\precomp.h" />
     <ClInclude Include="texture.h" />
