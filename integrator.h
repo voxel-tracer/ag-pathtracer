@@ -7,9 +7,6 @@
 
 class Scene {
 public:
-	Scene(vector<shared_ptr<Intersectable>> p, const CameraDesc& cam) :
-		primitives(move(p)), camera(cam) {}
-
 	bool NearestIntersection(const Ray& ray, SurfaceInteraction& hit) const {
 		bool found = false;
 		for (auto& primitive : primitives) {

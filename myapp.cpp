@@ -9,38 +9,33 @@
 #define TINYOBJLOADER_USE_MAPBOX_EARCUT
 #include "tiny_obj_loader.h"
 
-shared_ptr<Scene> BunnyScene() {
+void BunnyScene(Scene *scene) {
 	auto red = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
 	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.2f, 1.f);
 	auto floor = DisneyMaterial::Make(float3(.8f), .5f, 0.f);
 
-	vector<shared_ptr<Intersectable>> primitives;
-	primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
+	scene->primitives.push_back(std::make_shared<Plane>(make_float3(0, -1, 0), make_float2(20), floor));
 	mat4 transform = mat4::Translate(0, -1, 0) * mat4::RotateY(radians(60));
 	
 	auto trimesh = TriangleMesh::LoadObj("D://models/bunny.obj", red, transform);
-	primitives.push_back(make_shared<BVHTriMesh>(trimesh, red, 1));
+	scene->primitives.push_back(make_shared<BVHTriMesh>(trimesh, red, 1));
 
-	CameraDesc camera;
-	camera.lookfrom = float3(3, 1.5f, 4);
-	camera.lookat = float3(.5f, 0, .5f);
-	camera.vup = float3(0, 1, 0);
-	camera.aspect_ratio = 1;
-	camera.vfov = 30;
-	//camera.aperture = .1f;
+	scene->camera.lookfrom = float3(3, 1.5f, 4);
+	scene->camera.lookat = float3(.5f, 0, .5f);
+	scene->camera.vup = float3(0, 1, 0);
+	scene->camera.aspect_ratio = 1;
+	scene->camera.vfov = 30;
+	//scene->camera.aperture = .1f;
 
 	// add an emitting sphere
 	auto lightE = float3(523, 342, 342);
 	auto light = make_shared<Sphere>(float3(-30, 100, 40), 5.f, nullptr);
 	auto arealight = make_shared<AreaLight>(light, lightE);
 
-	primitives.push_back(light);
+	scene->primitives.push_back(light);
 
-	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(arealight);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
-
-	return scene;
 }
 
 shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const float3 color, float roughness) {
@@ -49,7 +44,8 @@ shared_ptr<Intersectable> makeSphere(const float3& center, float radius, const f
 }
 
 // Keep this as it matches PBRT's simple.pbrt
-shared_ptr<Scene> SimpleTestScene() {
+void SimpleTestScene(Scene *scene) {
+
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
 	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
@@ -93,34 +89,27 @@ shared_ptr<Scene> SimpleTestScene() {
 	auto cute28 = DisneyMaterial::Make(hex2lin(0xf0d1e3), .25f, 0.f);
 	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), .25f, 0.f);
 
-
-	vector<shared_ptr<Intersectable>> primitives;
 	auto floor = DisneyMaterial::Make(hex2lin(0xcbceb1), 1.f, 0.f);
 	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 10), float3(20), 7.5, 32, floor);
-	primitives.push_back(make_shared<BVHTriMesh>(backdrop, floor, 1));
+	scene->primitives.push_back(make_shared<BVHTriMesh>(backdrop, floor, 1));
 
-	primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, cute));
-	//primitives.push_back(make_shared<Sphere>(float3(0, 0, -10), 2.f, cute20));
+	scene->primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, cute));
 
 	// add an emitting sphere
 	auto lightE = float3(1, .941, .914) * 200;
 	auto light = make_shared<Sphere>(float3(20, 100, -20), 5.f, nullptr);
 
 	auto lightarea = make_shared<AreaLight>(light, lightE);
-	primitives.push_back(light);
+	scene->primitives.push_back(light);
 
-	CameraDesc camera;
-	camera.lookfrom = float3(1.24, 0.1, -4.84);
-	camera.lookat = float3(0, 0, 0);
-	camera.vup = float3(0, 1, 0);
-	camera.aspect_ratio = 1;
-	camera.aperture = .1f;
+	scene->camera.lookfrom = float3(1.24, 0.1, -4.84);
+	scene->camera.lookat = float3(0, 0, 0);
+	scene->camera.vup = float3(0, 1, 0);
+	scene->camera.aspect_ratio = 1;
+	scene->camera.aperture = .1f;
 
-	auto scene = make_shared<Scene>(primitives, camera);
 	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .5));
 	scene->lights.push_back(lightarea);
-
-	return scene;
 }
 
 TheApp* CreateApp() { return new MyApp(); }
@@ -130,8 +119,10 @@ TheApp* CreateApp() { return new MyApp(); }
 // -----------------------------------------------------------
 void MyApp::Init()
 {
+	scene = std::make_shared<Scene>();
+
 	// anything that happens only once at application start goes here
-	scene = SimpleTestScene();
+	SimpleTestScene(scene.get());
 	camera = make_shared<RotatingCamera>(scene->camera);
 
 	integratorR = make_shared<PathTracer>();
