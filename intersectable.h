@@ -20,6 +20,8 @@ public:
 
 	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const = 0;
 
+	virtual bool IntersectP(const Ray& ray) const = 0;
+
 	// Surface area of the Shape
 	// Mostly used for Direct light
 	virtual float Area() const { return 0.f; }
@@ -118,7 +120,7 @@ class Plane : public Intersectable {
 public:
 	Plane(float3 o, float2 size, shared_ptr<Material> m) : Intersectable(m), O(o), HalfSize(size / 2) {}
 
-	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
+	bool Intersect(const Ray& ray, SurfaceInteraction& hit) const {
 		if (ray.D.y == 0) return false; // ray is parallel to the plane
 		float t = (O.y - ray.O.y) / ray.D.y;
 		if (t <= 0 || t >= ray.t) return false; // make sure intersection is close enough
@@ -135,7 +137,19 @@ public:
 		return false;
 	}
 
-	virtual float Area() const override { return 4.f * HalfSize.x * HalfSize.y; }
+	bool IntersectP(const Ray& ray) const {
+		if (ray.D.y == 0) return false; // ray is parallel to the plane
+		float t = (O.y - ray.O.y) / ray.D.y;
+		if (t <= 0 || t >= ray.t) return false; // make sure intersection is close enough
+		// compute intersection position
+		float3 P = ray.at(t);
+		// make sure intersection is inside plane
+		float u = (P.x - O.x) / HalfSize.x;
+		float v = (P.z - O.z) / HalfSize.y;
+		return (fabsf(u) <= 1 && fabs(v) <= 1);
+	}
+
+	float Area() const { return 4.f * HalfSize.x * HalfSize.y; }
 
 public:
 	float3 O;
@@ -147,7 +161,7 @@ public:
 	Sphere(float3 center, float radius, shared_ptr<Material> m) : 
 		Intersectable(m), Center(center), r(radius), r2(radius* radius) {}
 
-	virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
+	bool Intersect(const Ray& ray, SurfaceInteraction& hit) const {
 		float3 oc = ray.O - Center;
 		// ray.D is normalized => a = 1
 		float half_b = dot(oc, ray.D);
@@ -190,9 +204,30 @@ public:
 		return true;
 	}
 
-	virtual float Area() const override { return 4.f * PI * r2; }
+	bool IntersectP(const Ray& ray) const {
+		float3 oc = ray.O - Center;
+		// ray.D is normalized => a = 1 // TODO this won't always be true !!!
+		float half_b = dot(oc, ray.D);
+		float c = sqrLength(oc) - r2;
 
-	virtual Interaction Sample(const float2& u, float* pdf) const override {
+		float discriminant = half_b * half_b - c;
+		if (discriminant < 0) return false;
+		float sqrtd = sqrtf(discriminant);
+
+		// Find the nearest root that lies in the acceptable range.
+		float root = -half_b - sqrtd;
+		if (root < 0 || ray.t < root) {
+			root = -half_b + sqrtd;
+			if (root < 0 || ray.t < root)
+				return false;
+		}
+
+		return true;
+	}
+
+	float Area() const { return 4.f * PI * r2; }
+
+	Interaction Sample(const float2& u, float* pdf) const {
 		float3 pObj = Center + r * RandomInSphere(u);
 		Interaction it;
 		it.n = normalize(pObj);
@@ -201,7 +236,7 @@ public:
 		return it;
 	}
 
-	virtual Interaction Sample(const SurfaceInteraction& ref, const float2& u, float* pdf) const override {
+	Interaction Sample(const SurfaceInteraction& ref, const float2& u, float* pdf) const {
 		float3 pCenter = Center;
 
 		// Sample uniformly on sphere if pt is inside it

@@ -22,7 +22,7 @@ public:
     TriangleMesh(shared_ptr<TriangleMesh> trimesh, shared_ptr<Material> mat) : 
         TriangleMesh(trimesh->indices, trimesh->vertices, trimesh->normals, trimesh->texcoords, mat) {};
 
-    virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
+    bool Intersect(const Ray& ray, SurfaceInteraction& hit) const {
         bool hit_anything = false;
 
         for (auto i = 0; i < indices.size(); i+= 3) {
@@ -34,8 +34,15 @@ public:
         return hit_anything;
     }
 
+    bool IntersectP(const Ray& ray) const {
+        for (auto i = 0; i < indices.size(); i += 3)
+            if (TriangleIntersectP(ray, i)) return true;
+        return false;
+    }
+
 protected:
     bool TriangleIntersect(const Ray& ray, int tridx, SurfaceInteraction& hit) const;
+    bool TriangleIntersectP(const Ray& ray, int tridx) const;
 
     vector<float3> vertices;
     vector<float3> normals;

@@ -182,7 +182,7 @@ public:
         FREE64(nodes);
     }
 
-    virtual bool Intersect(const Ray& ray, SurfaceInteraction& hit) const override {
+    bool Intersect(const Ray& ray, SurfaceInteraction& hit) const {
         float dist;
         if (!nodes[0].bounds.Intersect(ray, dist)) {
             return false;
@@ -190,11 +190,20 @@ public:
         return RecursiveHit(nodes[0], ray, hit);
     }
 
+    bool IntersectP(const Ray& ray) const {
+        float dist;
+        if (!nodes[0].bounds.Intersect(ray, dist)) 
+            return false;
+        return RecursiveHitP(nodes[0], ray);
+    }
+
 protected:
     shared_ptr<BVHBuildNode> BuildRecursive(int start, int end, int maxPrimsInNode, int* totalNodes);
     void FlattenBVHTree(const BVHBuildNode* node, int offset, int* firstChildOffset);
 
     bool RecursiveHit(const BVHNode& node, const Ray& ray, SurfaceInteraction& rec) const;
+
+    bool RecursiveHitP(const BVHNode& node, const Ray& ray) const;
 
     vector<Primitive> primitives;
 
@@ -372,4 +381,33 @@ bool BVHTriMesh::RecursiveHit(const BVHNode& node, const Ray& ray, SurfaceIntera
     }
 
     return hit_anything;
+}
+
+bool BVHTriMesh::RecursiveHitP(const BVHNode& node, const Ray& ray) const {
+    auto hit_anything = false;
+
+    // is it a leaf node ?
+    if (node.count > 0) {
+        for (auto i = 0; i < node.count; i++) {
+            auto idx = primitives[node.first + i].index;
+            if (TriangleIntersectP(ray, idx)) return true;
+        }
+
+        return false;
+    }
+
+    // it's an interior node
+    {
+        BVHNode child = nodes[node.first];
+        float tmp;
+        if (child.bounds.Intersect(ray, tmp) && RecursiveHitP(child, ray))
+            return true;
+    }
+    {
+        BVHNode child = nodes[node.first + 1];
+        float tmp;
+        if (child.bounds.Intersect(ray, tmp) && RecursiveHitP(child, ray))
+            return true;
+    }
+    return false;
 }

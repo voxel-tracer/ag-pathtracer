@@ -215,7 +215,7 @@ void MyApp::Tick( float deltaTime )
 		}
 
 		SurfaceInteraction hit;
-		if (scene->NearestIntersection(ray, hit)) {
+		if (scene->Intersect(ray, hit)) {
 			auto p = accumulator->FilmToWindow(camera->WorldToScreen(hit.p));
 			auto n = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.shading.n*5));
 			auto g = accumulator->FilmToWindow(camera->WorldToScreen(hit.p + hit.n * 5));

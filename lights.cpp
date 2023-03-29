@@ -6,8 +6,7 @@
 #include "integrator.h"
 
 bool VisibilityTester::Unoccluded(const Scene& scene) const {
-    SurfaceInteraction hit;
-    return !scene.NearestIntersection(ray, hit);
+    return !scene.IntersectP(ray);
 }
 
 float3 InfiniteAreaLight::Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const {

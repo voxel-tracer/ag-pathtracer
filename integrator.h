@@ -76,7 +76,7 @@ inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScatte
 			// Find Intersection
 			SurfaceInteraction lightIsect;
 			Ray ray(si.p + EPSILON * wi, wi);
-			bool foundSurfaceInteraction = scene.NearestIntersection(ray, lightIsect);
+			bool foundSurfaceInteraction = scene.Intersect(ray, lightIsect);
 			// Add light contribution from material sampling
 			float3 Li(0.f);
 			if (foundSurfaceInteraction) {
@@ -108,7 +108,7 @@ class DbgIntegrator : public Integrator {
 public:
 	float3 Li(const Ray& ray, const Scene& scene, int depth = 0) const {
 		SurfaceInteraction si;
-		if (scene.NearestIntersection(ray, si)) {
+		if (scene.Intersect(ray, si)) {
 			if (si.uv.x == 0 || si.uv.y == 0)
 				return float3(1, 0, 0);
 			return (float3(si.uv.x, si.uv.y, 0)) / 5;
@@ -133,7 +133,7 @@ public:
 
 			// Intersect _ray_ with scene and store intersection in _isect_
 			SurfaceInteraction isect;
-			bool foundIntersection = scene.NearestIntersection(ray, isect);
+			bool foundIntersection = scene.Intersect(ray, isect);
 
 			// Possibly add emitted light at intersection
 			if (bounces == 0 || specularBounce) {

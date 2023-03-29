@@ -113,6 +113,47 @@ bool TriangleMesh::TriangleIntersect(const Ray& ray, int tridx, SurfaceInteracti
     return true;
 }
 
+
+bool TriangleMesh::TriangleIntersectP(const Ray& ray, int tridx) const {
+    auto& v0 = vertices[indices[tridx + 0].vertex_index];
+    auto& v1 = vertices[indices[tridx + 1].vertex_index];
+    auto& v2 = vertices[indices[tridx + 2].vertex_index];
+
+    // find vectors for two edges sharing v0
+    auto e1 = v1 - v0;
+    auto e2 = v2 - v0;
+    // begin calculating determinant - also used to calculate U parameter
+    auto pvec = cross(ray.D, e2);
+    // if determinant is near zero, ray lies in plane of triangle
+    auto det = dot(e1, pvec);
+
+    // check determinant and exit if triangle and ray are parallel
+    if (det == 0.0f)
+        return false;
+    auto inv_det = 1.0f / det;
+
+    // calculate distance from v0 to ray.origin
+    auto tvec = ray.O - v0;
+    // calculate b1 parameter and test bounds
+    auto b1 = dot(tvec, pvec) * inv_det;
+    if (b1 < 0.0f || b1 > 1.0f)
+        return false;
+
+    // prepare to test V parameter
+    auto qvec = cross(tvec, e1);
+    // calculate b2 parameter and test bounds
+    auto b2 = dot(ray.D, qvec) * inv_det;
+    if (b2 < 0.0f || b1 + b2 > 1.0f)
+        return false;
+
+    // calculate t, ray intersects triangle
+    auto t = dot(e2, qvec) * inv_det;
+    if (t <= 0.0f || t >= ray.t)
+        return false;
+
+    return true;
+}
+
 shared_ptr<TriangleMesh> TriangleMesh::LoadObj(string inputfile, shared_ptr<Material> mat, const mat4& transform,
     bool ignore_normals, string mtl_search_path, bool verbose) {
 

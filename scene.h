@@ -2,7 +2,7 @@
 
 class Scene {
 public:
-	bool NearestIntersection(const Ray& ray, SurfaceInteraction& hit) const {
+	bool Intersect(const Ray& ray, SurfaceInteraction& hit) const {
 		bool found = false;
 		for (auto& primitive : primitives) {
 			if (primitive->Intersect(ray, hit)) {
@@ -10,6 +10,12 @@ public:
 			}
 		}
 		return found;
+	}
+
+	bool IntersectP(const Ray& ray) const {
+		for (auto& primitive : primitives)
+			if (primitive->IntersectP(ray)) return true;
+		return false;
 	}
 
 	void addAreaLight(std::shared_ptr<Intersectable> shape, const float3& L) {
