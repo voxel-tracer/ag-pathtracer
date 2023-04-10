@@ -81,7 +81,7 @@ inline float3 EstimateDirect(const SurfaceInteraction& si, const float2& uScatte
 			float3 Li(0.f);
 			if (foundSurfaceInteraction) {
 				if (lightIsect.shape->GetAreaLight() == &light)
-					Li = light.L; // TODO we should use Light::L(si, -wi)
+					Li = lightIsect.Le(-wi);
 			}
 			else
 				Li = light.Le(ray);
@@ -142,7 +142,7 @@ public:
 					L += beta * isect.Le(-ray.D);
 				} else {
 					for (const auto& light : scene.lights)
-						L += beta * light->Le(ray);
+						if (light->IsInfinite()) L += beta * light->Le(ray);
 				}
 			}
 

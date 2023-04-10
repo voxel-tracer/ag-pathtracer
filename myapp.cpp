@@ -48,54 +48,55 @@ void BunnyScene(Scene *scene) {
 		float3(1, .941, .914) * 1
 	);
 
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.4f, .45f, .5f)));
+	scene->lights.push_back(make_shared<UniformInfiniteLight>(float3(.4f, .45f, .5f)));
 }
 
 // Keep this as it matches PBRT's simple.pbrt
 void SimpleTestScene(Scene *scene) {
+	float roughness = .5f;
 
 	//auto c = rgb2lin(float3(.529f, .145f, .039f));
 	//std::cerr << c.x << ", " << c.y << ", " << c.z << std::endl;
-	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), .25f, 0.f);
-	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), 0.25f, 1.f);
-	auto aluminum = DisneyMaterial::Make((float3(0.912, 0.914, 0.920)), 0.25f, 0.f);
-	auto bone = DisneyMaterial::Make((float3(0.793, 0.793, 0.664)), 0.25f, 0.f);
-	auto brass = DisneyMaterial::Make((float3(0.887, 0.789, 0.434)), 0.25f, 0.f);
-	auto brick = DisneyMaterial::Make((float3(0.262, 0.095, 0.061)), 0.25f, 0.f);
-	auto charcoal = DisneyMaterial::Make((float3(0.020, 0.020, 0.020)), 0.25f, 0.f);
-	auto chocolate = DisneyMaterial::Make((float3(0.162, 0.091, 0.060)), 0.25f, 0.f);
-	auto chromium = DisneyMaterial::Make((float3(0.550, 0.556, 0.554)), 0.25f, 0.f);
+	auto disneyDielectric = DisneyMaterial::Make(rgb2lin(float3(.529f, .145f, .039f)), roughness, 0.f);
+	auto gold = DisneyMaterial::Make((float3(0.944f, 0.776f, 0.373f)), roughness, 1.f);
+	auto aluminum = DisneyMaterial::Make((float3(0.912, 0.914, 0.920)), roughness, 0.f);
+	auto bone = DisneyMaterial::Make((float3(0.793, 0.793, 0.664)), roughness, 0.f);
+	auto brass = DisneyMaterial::Make((float3(0.887, 0.789, 0.434)), roughness, 0.f);
+	auto brick = DisneyMaterial::Make((float3(0.262, 0.095, 0.061)), roughness, 0.f);
+	auto charcoal = DisneyMaterial::Make((float3(0.020, 0.020, 0.020)), roughness, 0.f);
+	auto chocolate = DisneyMaterial::Make((float3(0.162, 0.091, 0.060)), roughness, 0.f);
+	auto chromium = DisneyMaterial::Make((float3(0.550, 0.556, 0.554)), roughness, 0.f);
 
-	auto cute0 = DisneyMaterial::Make(hex2lin(0xf19a91), .25f, 0.f);
-	auto cute1 = DisneyMaterial::Make(hex2lin(0xedd0ca), .25f, 0.f);
-	auto cute2 = DisneyMaterial::Make(hex2lin(0xf3b8a8), .25f, 0.f);
-	auto cute3 = DisneyMaterial::Make(hex2lin(0xf9ece6), .25f, 0.f);
-	auto cute4 = DisneyMaterial::Make(hex2lin(0xf6e7d0), .25f, 0.f);
-	auto cute5 = DisneyMaterial::Make(hex2lin(0xf5deac), .25f, 0.f);
-	auto cute6 = DisneyMaterial::Make(hex2lin(0xeecf74), .25f, 0.f);
-	auto cute7 = DisneyMaterial::Make(hex2lin(0x9ed5d8), .25f, 0.f);
-	auto cute8 = DisneyMaterial::Make(hex2lin(0x9ba6ac), .25f, 0.f);
-	auto cute9 = DisneyMaterial::Make(hex2lin(0xaebdc4), .25f, 0.f);
-	auto cute10 = DisneyMaterial::Make(hex2lin(0xb9ddf3), .25f, 0.f);
-	auto cute11 = DisneyMaterial::Make(hex2lin(0x87abc5), .25f, 0.f);
-	auto cute12 = DisneyMaterial::Make(hex2lin(0xcbceb1), .25f, 0.f);
-	auto cute13 = DisneyMaterial::Make(hex2lin(0xf7f7f7), .25f, 0.f);
-	auto cute14 = DisneyMaterial::Make(hex2lin(0xc4ac64), .25f, 0.f);
-	auto cute15 = DisneyMaterial::Make(hex2lin(0xe2f4f6), .25f, 0.f);
-	auto cute16 = DisneyMaterial::Make(hex2lin(0xd2e4e6), .25f, 0.f);
-	auto cute17 = DisneyMaterial::Make(hex2lin(0xbfdcda), .25f, 0.f);
-	auto cute18 = DisneyMaterial::Make(hex2lin(0x69bab3), .25f, 0.f);
-	auto cute19 = DisneyMaterial::Make(hex2lin(0x88cabc), .25f, 0.f);
-	auto cute20 = DisneyMaterial::Make(hex2lin(0xcdd1d4), .25f, 0.f);
-	auto cute21 = DisneyMaterial::Make(hex2lin(0xe6e5ea), .25f, 0.f);
-	auto cute22 = DisneyMaterial::Make(hex2lin(0x33455b), .25f, 0.f);
-	auto cute23 = DisneyMaterial::Make(hex2lin(0x5b6268), .25f, 0.f);
-	auto cute24 = DisneyMaterial::Make(hex2lin(0x778592), .25f, 0.f);
-	auto cute25 = DisneyMaterial::Make(hex2lin(0xe57a82), .25f, 0.f);
-	auto cute26 = DisneyMaterial::Make(hex2lin(0xcd7d88), .25f, 0.f);
-	auto cute27 = DisneyMaterial::Make(hex2lin(0xe3a3b1), .25f, 0.f);
-	auto cute28 = DisneyMaterial::Make(hex2lin(0xf0d1e3), .25f, 0.f);
-	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), .25f, 0.f);
+	auto cute0 = DisneyMaterial::Make(hex2lin(0xf19a91), roughness, 0.f);
+	auto cute1 = DisneyMaterial::Make(hex2lin(0xedd0ca), roughness, 0.f);
+	auto cute2 = DisneyMaterial::Make(hex2lin(0xf3b8a8), roughness, 0.f);
+	auto cute3 = DisneyMaterial::Make(hex2lin(0xf9ece6), roughness, 0.f);
+	auto cute4 = DisneyMaterial::Make(hex2lin(0xf6e7d0), roughness, 0.f);
+	auto cute5 = DisneyMaterial::Make(hex2lin(0xf5deac), roughness, 0.f);
+	auto cute6 = DisneyMaterial::Make(hex2lin(0xeecf74), roughness, 0.f);
+	auto cute7 = DisneyMaterial::Make(hex2lin(0x9ed5d8), roughness, 0.f);
+	auto cute8 = DisneyMaterial::Make(hex2lin(0x9ba6ac), roughness, 0.f);
+	auto cute9 = DisneyMaterial::Make(hex2lin(0xaebdc4), roughness, 0.f);
+	auto cute10 = DisneyMaterial::Make(hex2lin(0xb9ddf3), roughness, 0.f);
+	auto cute11 = DisneyMaterial::Make(hex2lin(0x87abc5), roughness, 0.f);
+	auto cute12 = DisneyMaterial::Make(hex2lin(0xcbceb1), roughness, 0.f);
+	auto cute13 = DisneyMaterial::Make(hex2lin(0xf7f7f7), roughness, 0.f);
+	auto cute14 = DisneyMaterial::Make(hex2lin(0xc4ac64), roughness, 0.f);
+	auto cute15 = DisneyMaterial::Make(hex2lin(0xe2f4f6), roughness, 0.f);
+	auto cute16 = DisneyMaterial::Make(hex2lin(0xd2e4e6), roughness, 0.f);
+	auto cute17 = DisneyMaterial::Make(hex2lin(0xbfdcda), roughness, 0.f);
+	auto cute18 = DisneyMaterial::Make(hex2lin(0x69bab3), roughness, 0.f);
+	auto cute19 = DisneyMaterial::Make(hex2lin(0x88cabc), roughness, 0.f);
+	auto cute20 = DisneyMaterial::Make(hex2lin(0xcdd1d4), roughness, 0.f);
+	auto cute21 = DisneyMaterial::Make(hex2lin(0xe6e5ea), roughness, 0.f);
+	auto cute22 = DisneyMaterial::Make(hex2lin(0x33455b), roughness, 0.f);
+	auto cute23 = DisneyMaterial::Make(hex2lin(0x5b6268), roughness, 0.f);
+	auto cute24 = DisneyMaterial::Make(hex2lin(0x778592), roughness, 0.f);
+	auto cute25 = DisneyMaterial::Make(hex2lin(0xe57a82), roughness, 0.f);
+	auto cute26 = DisneyMaterial::Make(hex2lin(0xcd7d88), roughness, 0.f);
+	auto cute27 = DisneyMaterial::Make(hex2lin(0xe3a3b1), roughness, 0.f);
+	auto cute28 = DisneyMaterial::Make(hex2lin(0xf0d1e3), roughness, 0.f);
+	auto cute = DisneyMaterial::Make(hex2lin(0xc5b5d2), roughness, 0.f);
 
 	auto floor = DisneyMaterial::Make(hex2lin(0xcbceb1), 1.f, 0.f);
 	auto backdrop = TriangleMesh::CreateBackdrop(make_float3(0, -1, 20), float3(40, 20, 40), 7.5, 32, floor);
@@ -103,31 +104,13 @@ void SimpleTestScene(Scene *scene) {
 
 	scene->primitives.push_back(make_shared<Sphere>(float3(0, 0, 0), 1.f, gold));
 
-	// add area lights
-	// key light
-	scene->addAreaLight(
-		make_shared<Sphere>(float3(0, 25, -20), 1.f, nullptr),
-		float3(1, .941, .914) * 200
-	);
-	// fill light
-	scene->addAreaLight(
-		make_shared<Sphere>(float3(10, 25, -20), 1.f, nullptr),
-		float3(1, .941, .914) * 50
-	);
-	// back light
-	scene->addAreaLight(
-		make_shared<Sphere>(float3(0, 20, 10), 5.f, nullptr),
-		float3(1, .941, .914) * 1
-	);
-
-	scene->camera.lookfrom = normalize(float3(1.24, 0.1, -4.84))*5;
+	scene->camera.lookfrom = float3(-1.46, 1.16, -4.64);
 	scene->camera.lookat = float3(0, 0, 0);
 	scene->camera.vup = float3(0, 1, 0);
 	scene->camera.aspect_ratio = 1;
 	scene->camera.aperture = .1f;
 
-	scene->lights.push_back(make_shared<InfiniteAreaLight>(float3(.765, .82, 1) * .05));
-	//scene->lights.push_back(lightarea);
+	scene->lights.push_back(std::make_shared<InfiniteAreaLight>("small_workshop_1k.hdr"));
 }
 
 TheApp* CreateApp() { return new MyApp(); }

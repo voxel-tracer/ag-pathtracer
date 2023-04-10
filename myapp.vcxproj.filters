@@ -35,6 +35,7 @@
     <ClInclude Include="disney.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="sampling.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="template\LICENSE">

@@ -3,6 +3,10 @@
 class Scene;
 class Ray;
 class SurfaceInteraction;
+class HDRTexture;
+struct Distribution1D;
+
+#define ILS
 
 class VisibilityTester {
 public:
@@ -17,8 +21,6 @@ private:
 
 class Light {
 public:
-    Light(float3 l) : L(l) {}
-
     virtual float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const {
         return float3(0.f);
     }
@@ -27,36 +29,59 @@ public:
         return 0.f;
     }
 
-    virtual float3 Le(const Ray& ray) const {
-        return float3(0.f);
-    }
+    virtual float3 Le(const Ray& ray) const { return float3(0.f); }
 
-    float3 L;
+    virtual bool IsInfinite() const { return false; }
+};
+
+class UniformInfiniteLight : public Light {
+public:
+    UniformInfiniteLight(const float3& l) : Lemit(l) {}
+
+    float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const;
+
+    float Pdf_Li(const SurfaceInteraction& si, const float3& wi) const;
+
+    float3 Le(const Ray& ray) const { return Lemit; }
+
+    virtual bool IsInfinite() const { return true; }
+
+protected:
+    const float3 Lemit;
 };
 
 class InfiniteAreaLight : public Light {
 public:
-    InfiniteAreaLight(float3 l) : Light(l) {}
+    InfiniteAreaLight(const std::string& texmap);
 
-    virtual float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const override;
+    float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const;
 
-    virtual float Pdf_Li(const SurfaceInteraction& si, const float3& wi) const override;
+    float Pdf_Li(const SurfaceInteraction& si, const float3& wi) const;
 
-    virtual float3 Le(const Ray& ray) const override {
-        return L;
-    }
+    float3 Le(const Ray& ray) const;
 
+    virtual bool IsInfinite() const { return true; }
+
+private:
+    std::shared_ptr<HDRTexture> Lmap;
+#ifdef ILS
+    std::shared_ptr<Distribution1D> distrib;
+#endif
 };
 
 class AreaLight : public Light {
 public:
-    AreaLight(shared_ptr<Intersectable> shape, const float3& l) : Light(l), Shape(shape) {
+    AreaLight(shared_ptr<Intersectable> shape, const float3& l) : Lemit(l), Shape(shape) {
         shape->SetAreaLight(this);
     }
 
-    virtual float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const override;
+    float3 Sample_Li(const SurfaceInteraction& ref, const float2& u, float3* wi, float* pdf, VisibilityTester* vis) const;
 
-    virtual float Pdf_Li(const SurfaceInteraction& si, const float3& wi) const override;
+    float Pdf_Li(const SurfaceInteraction& si, const float3& wi) const;
+
+    float3 L(const SurfaceInteraction& si, const float3& w) const { return Lemit; }
 
     shared_ptr<Intersectable> Shape;
+protected:
+    const float3 Lemit;
 };

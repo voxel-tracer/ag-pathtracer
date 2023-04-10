@@ -155,6 +155,15 @@ inline float3 SphericalDirection(float sinTheta, float cosTheta, float phi,
 	return sinTheta * std::cos(phi) * x + sinTheta * std::sin(phi) * y + cosTheta * z;
 }
 
+inline float SphericalTheta(const float3& v) {
+	return std::acos(clamp(v.z, -1.f, 1.f));
+}
+
+inline float SphericalPhi(const float3& v) {
+	float p = std::atan2(v.y, v.x);
+	return (p < 0) ? (p + TWOPI) : p;
+}
+
 inline float UniformConePdf(float cosThetaMax) {
 	return 1 / (2 * PI * (1 - cosThetaMax));
 }
